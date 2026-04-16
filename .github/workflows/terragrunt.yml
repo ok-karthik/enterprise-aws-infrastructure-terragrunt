@@ -48,12 +48,17 @@ jobs:
           role-to-assume: ${{ env.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
+      - name: Terragrunt Init
+        run: |
+          terragrunt run-all init --terragrunt-non-interactive
+        working-directory: live/dev/ap-south-2
+
       - name: Terragrunt Plan DEV
         if: github.event_name == 'pull_request'
         id: plan
         run: |
-          # Use -no-color for cleaner PR comments
-          terragrunt run-all plan --terragrunt-non-interactive -no-color > plan_output.txt 2>&1
+          # Use tee to see output in console AND capture it for the PR comment
+          terragrunt run-all plan --terragrunt-non-interactive -no-color 2>&1 | tee plan_output.txt
         continue-on-error: true
         working-directory: live/dev/ap-south-2
 
@@ -86,8 +91,8 @@ jobs:
               body: output
             })
 
-      - name: Terragrunt Apply
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        run: |
-          terragrunt run-all apply --terragrunt-non-interactive
-        working-directory: live/dev/ap-south-2
+#      - name: Terragrunt Apply
+#        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+#        run: |
+#          terragrunt run-all apply --terragrunt-non-interactive
+#        working-directory: live/dev/ap-south-2
