@@ -89,17 +89,17 @@ jobs:
             exit 1
           fi
           
-          # 3. Summarize (Markdown output)
+          # 3. Summarize (Standard output)
           # Capture errors to a separate file to see why EKS might fail
           if terragrunt show -json tfplan > tfplan.json 2>show_err.txt && \
-             tf-summarize -md tfplan.json > summary_new.md 2>sum_err.txt; then
-            mv summary_new.md summary.txt
+             tf-summarize tfplan.json > summary_new.txt 2>sum_err.txt; then
+            mv summary_new.txt summary.txt
           else
             echo "SUMMARIZE FAILED (Plan passed)" > summary.txt
-            echo "--- SHOW ERROR ---" >> plan_raw.txt
-            cat show_err.txt >> plan_raw.txt || true
-            echo "--- SUMMARIZE ERROR ---" >> plan_raw.txt
-            cat sum_err.txt >> plan_raw.txt || true
+            echo "--- SHOW ERROR ---" >> summary.txt
+            cat show_err.txt >> summary.txt || true
+            echo "--- SUMMARIZE ERROR ---" >> summary.txt
+            cat sum_err.txt >> summary.txt || true
           fi
         working-directory: ${{ matrix.module }}
         continue-on-error: true
@@ -152,7 +152,7 @@ jobs:
                STATUS="❌ FAILED (Plan)"
             elif grep -q "SUMMARIZE FAILED" "$summary"; then
                STATUS="✅ PASSED (Summary Error)"
-               DESC="Plan succeeded, but we couldn't generate the table."
+               DESC="Plan succeeded, but we couldn't generate the table. See error below."
             else
                STATUS="✅ SUCCESS"
             fi
@@ -160,12 +160,22 @@ jobs:
             echo "### Module: \`${MODULE_NAME}\` ${STATUS}" >> report.md
             [ -n "$DESC" ] && echo "> $DESC" >> report.md
             
-            # 2. Markdown Summary (Collapsible)
+            # 2. Summary Table (Collapsible)
             if [ -f "$summary" ] && ! grep -q "FAILED" "$summary"; then
+               # Wrap in code block for alignment
                echo "<details><summary>📦 Click to see changes (Total resources/outputs)</summary>" >> report.md
                echo "" >> report.md
+               echo "\`\`\`" >> report.md
                cat "$summary" >> report.md
+               echo "\`\`\`" >> report.md
+               echo "</details>" >> report.md
+            elif [ -f "$summary" ] && grep -q "SUMMARIZE FAILED" "$summary"; then
+               # Show the captured error
+               echo "<details><summary>❌ Show Summarization Error</summary>" >> report.md
                echo "" >> report.md
+               echo "\`\`\`" >> report.md
+               cat "$summary" >> report.md
+               echo "\`\`\`" >> report.md
                echo "</details>" >> report.md
             fi
             
