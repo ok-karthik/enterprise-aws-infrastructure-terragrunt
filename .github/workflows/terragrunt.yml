@@ -106,13 +106,17 @@ jobs:
 
       - name: Prepare Metadata
         if: always()
-        run: echo "${{ matrix.module }}" > ${{ matrix.module }}/metadata.txt
+        run: |
+          echo "${{ matrix.module }}" > ${{ matrix.module }}/metadata.txt
+          # Create a slug for the artifact name (replace slashes with dashes)
+          SLUG=$(echo "${{ matrix.module }}" | sed 's/\//-/g')
+          echo "SLUG=$SLUG" >> $GITHUB_ENV
 
       - name: Upload Artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: results-${{ strategy.job-index }}
+          name: plan-${{ env.SLUG }}
           path: |
             ${{ matrix.module }}/summary.txt
             ${{ matrix.module }}/plan_raw.txt

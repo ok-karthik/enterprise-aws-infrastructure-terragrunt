@@ -20,10 +20,10 @@ dependency "vpc" {
 
   # Mock outputs allow 'terragrunt plan' to work even if the VPC isn't applied yet.
   mock_outputs = {
-    vpc_id          = "vpc-fake-id-123"
-    private_subnets = ["subnet-fake-id-1", "subnet-fake-id-2", "subnet-fake-id-3"]
+    vpc_id          = "vpc-12345678"
+    private_subnets = ["subnet-12345678", "subnet-87654321"]
   }
-  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "apply"]
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "show"]
 }
 
 inputs = {
