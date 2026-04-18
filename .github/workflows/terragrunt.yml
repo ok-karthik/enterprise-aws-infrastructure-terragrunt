@@ -111,28 +111,29 @@ jobs:
           echo "### 🚀 Terragrunt Plan Summary" > report.md
           echo "" >> report.md
           
-          # Iterate through downloaded results
-          for dir in results/*; do
-            if [ -d "$dir" ]; then
-              # Get a pretty name for the module
-              MODULE_NAME=$(grep -oE "live/dev/ap-south-2/[^ ]+" "$dir/plan_raw.txt" | head -1 || echo "Module")
-              # Actually let's just use the dir name or pass the module path
-              
-              echo "#### 📦 Module: \`${dir#results/results-}\`" >> report.md
-              echo "\`\`\`" >> report.md
-              cat "$dir/summary.txt" >> report.md
-              echo "\`\`\`" >> report.md
-              
-              echo "<details><summary>Show Full Plan Output</summary>" >> report.md
-              echo "" >> report.md
-              echo "\`\`\`terraform" >> report.md
-              # Truncate if very long
-              head -c 50000 "$dir/plan_raw.txt" >> report.md
-              echo "\`\`\`" >> report.md
-              echo "</details>" >> report.md
-              echo "" >> report.md
-              echo "---" >> report.md
-            fi
+          # Use find to locate all summary files regardless of nesting
+          for summary in $(find results -name "summary.txt"); do
+            dir=$(dirname "$summary")
+            plan_raw="$dir/plan_raw.txt"
+            
+            # Determine module name from the path
+            # (e.g., results/results-0/live/dev/ap-south-2/vpc -> vpc)
+            MODULE_NAME=$(echo "$dir" | awk -F'/' '{print $(NF-1) "/" $NF}')
+            
+            echo "#### 📦 Module: \`${MODULE_NAME}\`" >> report.md
+            echo "\`\`\`" >> report.md
+            cat "$summary" >> report.md
+            echo "\`\`\`" >> report.md
+            
+            echo "<details><summary>Show Full Plan Output</summary>" >> report.md
+            echo "" >> report.md
+            echo "\`\`\`terraform" >> report.md
+            # Truncate if very long (Markdown limits)
+            head -c 50000 "$plan_raw" >> report.md
+            echo "\`\`\`" >> report.md
+            echo "</details>" >> report.md
+            echo "" >> report.md
+            echo "---" >> report.md
           done
           
           echo "*Pushed by: @${{ github.actor }}, Action: \`${{ github.event_name }}\`*" >> report.md
