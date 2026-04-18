@@ -89,6 +89,10 @@ jobs:
         working-directory: ${{ matrix.module }}
         continue-on-error: true
 
+      - name: Prepare Metadata
+        if: always()
+        run: echo "${{ matrix.module }}" > ${{ matrix.module }}/metadata.txt
+
       - name: Upload Artifacts
         if: always()
         uses: actions/upload-artifact@v4
@@ -98,6 +102,7 @@ jobs:
           path: |
             ${{ matrix.module }}/summary.txt
             ${{ matrix.module }}/plan_raw.txt
+            ${{ matrix.module }}/metadata.txt
           retention-days: 1
 
   # 3. Stage: Reporting - Consolidate all plans into one PR comment
@@ -131,13 +136,14 @@ jobs:
             echo "Processing summary file: $summary"
             dir=$(dirname "$summary")
             plan_raw="$dir/plan_raw.txt"
+            metadata="$dir/metadata.txt"
             
-            # Determine module name from the path
-            MODULE_NAME=$(echo "$dir" | awk -F'/' '{print $(NF-1) "/" $NF}')
+            # Use metadata file for module name, fallback to path if missing
+            MODULE_NAME=$(cat "$metadata" 2>/dev/null || echo "$dir" | awk -F'/' '{print $(NF-1) "/" $NF}')
             echo "Module name resolved to: $MODULE_NAME"
             
             # Check for failure
-            if grep -q "FAILED" "$summary"; then
+            if grep -qE "FAILED|INIT|PLAN" "$summary"; then
                echo "#### ❌ Module: \`${MODULE_NAME}\` (FAILED)" >> report.md
                echo "> [!CAUTION]" >> report.md
                echo "> The plan for this module failed. Check the [Action Logs](${{ github.server_url }}/${{ github.repo }}/actions/runs/${{ github.run_id }}) for details." >> report.md
@@ -148,13 +154,18 @@ jobs:
                echo "\`\`\`" >> report.md
             fi
             
-            echo "<details><summary>Show Full Plan Output</summary>" >> report.md
-            echo "" >> report.md
-            echo "\`\`\`terraform" >> report.md
-            # Truncate if very long (Markdown limits)
-            head -c 50000 "$plan_raw" >> report.md
-            echo "\`\`\`" >> report.md
-            echo "</details>" >> report.md
+            # Only show plan output if it exists
+            if [ -f "$plan_raw" ]; then
+              echo "<details><summary>Show Full Plan Output</summary>" >> report.md
+              echo "" >> report.md
+              echo "\`\`\`terraform" >> report.md
+              head -c 50000 "$plan_raw" >> report.md
+              echo "\`\`\`" >> report.md
+              echo "</details>" >> report.md
+            else
+              echo "> _No plan output available (Initialization failed)_" >> report.md
+            fi
+            
             echo "" >> report.md
             echo "---" >> report.md
           done
