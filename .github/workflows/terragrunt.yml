@@ -84,20 +84,22 @@ jobs:
           fi
           
           # 2. Plan
-          # Ensure plan is generated for summarize
           if ! terragrunt plan --non-interactive -no-color -out=tfplan 2>&1 | tee /dev/stderr | sed 's/^.*terraform: //g' > plan_raw.txt; then
             echo "PLAN FAILED" > summary.txt
             exit 1
           fi
           
-          # 3. Summarize
-          # We use 'terragrunt show' instead of 'terraform show' so it finds the cache
-          if terragrunt show -json tfplan > tfplan.json && tf-summarize tfplan.json > summary_new.txt; then
-            mv summary_new.txt summary.txt
+          # 3. Summarize (Markdown output)
+          # Capture errors to a separate file to see why EKS might fail
+          if terragrunt show -json tfplan > tfplan.json 2>show_err.txt && \
+             tf-summarize -template=markdown tfplan.json > summary_new.md 2>sum_err.txt; then
+            mv summary_new.md summary.txt
           else
             echo "SUMMARIZE FAILED (Plan passed)" > summary.txt
-            echo "--- DEBUG INFO ---" >> plan_raw.txt
-            echo "Summarization failed. Terragrunt show or tf-summarize encountered an error." >> plan_raw.txt
+            echo "--- SHOW ERROR ---" >> plan_raw.txt
+            cat show_err.txt >> plan_raw.txt || true
+            echo "--- SUMMARIZE ERROR ---" >> plan_raw.txt
+            cat sum_err.txt >> plan_raw.txt || true
           fi
         working-directory: ${{ matrix.module }}
         continue-on-error: true
@@ -134,44 +136,42 @@ jobs:
           echo "### 🚀 Terragrunt Plan Summary" > report.md
           echo "" >> report.md
           
-          # Loop over metadata files to ensure every module is caught
           for metadata in $(find results -name "metadata.txt"); do
             dir=$(dirname "$metadata")
             summary="$dir/summary.txt"
             plan_raw="$dir/plan_raw.txt"
             MODULE_NAME=$(cat "$metadata")
             
-            # 1. Handle Status
+            # 1. Status Logic
             if [ ! -f "$summary" ]; then
                STATUS="⚠️ UNKNOWN"
-               DESC="Plan was interrupted or crashed."
+               DESC="Plan was interrupted."
             elif grep -q "INIT FAILED" "$summary"; then
                STATUS="❌ FAILED (Init)"
-               DESC="Initialization failed. Check logs."
             elif grep -q "PLAN FAILED" "$summary"; then
                STATUS="❌ FAILED (Plan)"
-               DESC="Plan generation failed. Check details below."
             elif grep -q "SUMMARIZE FAILED" "$summary"; then
                STATUS="✅ PASSED (Summary Error)"
-               DESC="Plan succeeded, but we couldn't generate the summary table."
+               DESC="Plan succeeded, but we couldn't generate the table."
             else
                STATUS="✅ SUCCESS"
-               DESC=""
             fi
 
             echo "### Module: \`${MODULE_NAME}\` ${STATUS}" >> report.md
             [ -n "$DESC" ] && echo "> $DESC" >> report.md
             
-            # 2. Show Summary Table if successful
+            # 2. Markdown Summary (Collapsible)
             if [ -f "$summary" ] && ! grep -q "FAILED" "$summary"; then
-               echo "\`\`\`" >> report.md
+               echo "<details><summary>📦 Click to see changes (Total resources/outputs)</summary>" >> report.md
+               echo "" >> report.md
                cat "$summary" >> report.md
-               echo "\`\`\`" >> report.md
+               echo "" >> report.md
+               echo "</details>" >> report.md
             fi
             
-            # 3. Handle Plan Output
+            # 3. Plan Output (Collapsible)
             if [ -f "$plan_raw" ]; then
-              echo "<details><summary>Show Full Plan Output</summary>" >> report.md
+              echo "<details><summary>🔍 Click to show full plan output</summary>" >> report.md
               echo "" >> report.md
               echo "\`\`\`terraform" >> report.md
               head -c 50000 "$plan_raw" >> report.md
@@ -180,7 +180,7 @@ jobs:
             fi
             
             echo "" >> report.md
-            echo "[View Detailed Logs](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> report.md
+            echo "[View Detailed Action Logs](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> report.md
             echo "---" >> report.md
           done
           
