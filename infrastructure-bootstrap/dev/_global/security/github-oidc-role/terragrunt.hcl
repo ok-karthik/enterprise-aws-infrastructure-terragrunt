@@ -9,6 +9,11 @@ terraform {
 # Ensure the OIDC Provider (the trust bridge) is created before the role
 dependency "oidc_provider" {
   config_path = "../github-oidc-provider"
+
+  mock_outputs = {
+    arn = "arn:aws:iam::123456789012:oidc-provider/token.actions.githubusercontent.com"
+  }
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
 }
 
 locals {

@@ -59,8 +59,11 @@ jobs:
 
       - name: Install tf-summarize
         run: |
-          curl -sL https://github.com/dineshba/tf-summarize/releases/latest/download/tf-summarize_linux_amd64.tar.gz | tar xz || true
-          [ -f tf-summarize ] && sudo mv tf-summarize /usr/local/bin/ || echo "tf-summarize install failed"
+          # Use a more reliable way to install tf-summarize into a path that works
+          curl -sL https://github.com/dineshba/tf-summarize/releases/latest/download/tf-summarize_linux_amd64.tar.gz | tar xz
+          mkdir -p $HOME/.local/bin
+          mv tf-summarize $HOME/.local/bin/
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -75,18 +78,20 @@ jobs:
           echo "PENDING" > summary.txt
 
           # 1. Init
-          if ! terragrunt init --terragrunt-non-interactive; then
+          if ! terragrunt init --non-interactive; then
             echo "INIT FAILED" > summary.txt
             exit 1
           fi
           
           # 2. Plan
-          if ! terragrunt plan --terragrunt-non-interactive -no-color -out=tfplan 2>&1 | tee /dev/stderr | sed 's/^.*terraform: //g' > plan_raw.txt; then
+          # Ensure plan is generated for summarize
+          if ! terragrunt plan --non-interactive -no-color -out=tfplan 2>&1 | tee /dev/stderr | sed 's/^.*terraform: //g' > plan_raw.txt; then
             echo "PLAN FAILED" > summary.txt
             exit 1
           fi
           
           # 3. Summarize
+          # Use binary path explicitly if needed, but adding to GITHUB_PATH should work
           if terraform show -json tfplan > tfplan.json && tf-summarize tfplan.json > summary_new.txt; then
             mv summary_new.txt summary.txt
           else
