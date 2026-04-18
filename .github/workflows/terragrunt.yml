@@ -7,12 +7,113 @@ on:
   pull_request:
 
 permissions:
-  id-token: write # Required for OIDC
+  id-token: write       # Required for OIDC
   contents: read
-  pull-requests: write # Required to post plan comments
+  pull-requests: write  # Required to post plan and cost comments
+  security-events: write # Required to upload SARIF security reports
 
 jobs:
+  # ─────────────────────────────────────────────────────────────
+  # Gate 1: Code Quality — TFLint
+  # ─────────────────────────────────────────────────────────────
+  lint:
+    name: '🔍 Lint (TFLint)'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Git Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup TFLint
+        uses: terraform-linters/setup-tflint@v4
+        with:
+          tflint_version: v0.54.0
+
+      - name: Init TFLint (download AWS plugin)
+        run: tflint --init
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+      - name: Run TFLint on modules
+        run: tflint --chdir=infrastructure-modules --recursive --format=compact
+
+      - name: Run TFLint on live
+        run: tflint --chdir=infrastructure-live --recursive --format=compact
+
+  # ─────────────────────────────────────────────────────────────
+  # Gate 2: Security — Checkov + Trivy
+  # ─────────────────────────────────────────────────────────────
+  security:
+    name: '🛡️ Security Scan (Checkov + Trivy)'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Git Checkout
+        uses: actions/checkout@v4
+
+      - name: Run Checkov
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          config_file: .checkov.yaml
+          output_format: cli,sarif
+          output_file_path: console,checkov-results.sarif
+          soft_fail: false
+
+      - name: Upload Checkov SARIF to GitHub Security Tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: checkov-results.sarif
+          category: checkov
+
+      - name: Run Trivy IaC Scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: config
+          scan-ref: .
+          format: sarif
+          output: trivy-results.sarif
+          severity: CRITICAL,HIGH
+          exit-code: '0' # Informational; Checkov is the hard gate
+
+      - name: Upload Trivy SARIF to GitHub Security Tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-results.sarif
+          category: trivy
+
+  # ─────────────────────────────────────────────────────────────
+  # Gate 3: Cost Estimation — Infracost (informational)
+  # ─────────────────────────────────────────────────────────────
+  cost:
+    name: '💰 Cost Estimate (Infracost)'
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Git Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Infracost
+        uses: infracost/actions/setup@v3
+        with:
+          api-key: ${{ secrets.INFRACOST_API_KEY }}
+
+      - name: Generate Infracost Cost Estimate
+        run: |
+          infracost breakdown \
+            --path infrastructure-live \
+            --terraform-var-file="" \
+            --format json \
+            --out-file /tmp/infracost.json
+
+      - name: Post Infracost PR Comment
+        uses: infracost/actions/comment@v3
+        with:
+          path: /tmp/infracost.json
+          behavior: update
+
+  # ─────────────────────────────────────────────────────────────
   # 1. Stage: Discovery - Find all Terragrunt modules
+  # ─────────────────────────────────────────────────────────────
   discover:
     name: 'Discover Modules'
     runs-on: ubuntu-latest
@@ -25,14 +126,15 @@ jobs:
       - name: Find Modules
         id: set-modules
         run: |
-          # Find all directories with terragrunt.hcl, excluding cache and hidden dirs
-          MODULE_DIRS=$(find infrastructure-live infrastructure-bootstrap -name "terragrunt.hcl" -not -path "*/.terragrunt-cache/*" | xargs dirname | sort -u | jq -R -s -c 'split("\n")[:-1]')
-          echo "modules=${MODULE_DIRS}" | tee -a "$GITHUB_OUTPUT"
+          # Find all directories with terragrunt.hcl, excluding the root and bootstrap
+          # This ensures we only run the pipeline for regional/live infrastructure
+          MODULES=$(find infrastructure-live -name "terragrunt.hcl" -not -path "*/.terragrunt-cache/*" | xargs -I {} dirname {} | jq -R . | jq -s -c .)
+          echo "modules=$MODULES" >> $GITHUB_OUTPUT
 
   # 2. Stage: Execution - Run Parallel Plans
   terragrunt:
     name: 'Plan: ${{ matrix.module }}'
-    needs: [discover]
+    needs: [discover, lint, security]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false

@@ -1,0 +1,26 @@
+# Checkov configuration for Terragrunt-based repositories
+# See: https://www.checkov.io/2.Basics/CLI%20Command%20Reference.html
+
+directory:
+  - infrastructure-modules
+  - infrastructure-live
+  - infrastructure-bootstrap
+
+# Output formats
+output:
+  - cli
+  - sarif
+
+# Soft-fail on known low-severity issues that are acceptable in dev environments
+soft-fail-on:
+  - LOW
+
+# Skip checks that are not applicable to this prototype
+# CKV_AWS_79: Ensure Instance Metadata Service Version 1 is not enabled
+#              -> EKS nodes use IMDSv1 by default in some module versions
+# CKV_AWS_8:  Ensure that any launch configuration or launch template has enabled detailed monitoring
+#              -> Acceptable for non-prod
+skip-check:
+  - CKV_AWS_79
+  - CKV_AWS_8
+  - CKV2_AWS_5  # Ensure that Security Groups are attached to another resource (false positive in modules)
