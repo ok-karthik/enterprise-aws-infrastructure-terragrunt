@@ -12,16 +12,37 @@ permissions:
   pull-requests: write # Required to post plan comments
 
 jobs:
-  terragrunt:
-    name: 'Terragrunt'
-    # Standard runner is faster and more reliable for OIDC + JS Actions
+  # 1. Stage: Discovery - Find all Terragrunt modules
+  discover:
+    name: 'Discover Modules'
     runs-on: ubuntu-latest
+    outputs:
+      modules: ${{ steps.set-modules.outputs.modules }}
+    steps:
+      - name: Git Checkout
+        uses: actions/checkout@v4
+
+      - name: Find Modules
+        id: set-modules
+        run: |
+          # Find all directories with terragrunt.hcl, excluding cache and hidden dirs
+          MODULE_DIRS=$(find live -name "terragrunt.hcl" -not -path "*/.terragrunt-cache/*" | xargs dirname | sort -u | jq -R -s -c 'split("\n")[:-1]')
+          echo "modules=${MODULE_DIRS}" >> $GITHUB_OUTPUT
+
+  # 2. Stage: Execution - Run Parallel Plans
+  terragrunt:
+    name: 'Plan: ${{ matrix.module }}'
+    needs: [discover]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        module: ${{ fromJson(needs.discover.outputs.modules) }}
     env:
       AWS_REGION: ${{ vars.AWS_REGION }}
       AWS_ROLE_ARN: ${{ vars.AWS_ROLE_ARN }}
-      # This cleans up the internal Terragrunt logs
       TG_LOG_CUSTOM_FORMAT: "%msg"
-
+    
     steps:
       - name: Git Checkout
         uses: actions/checkout@v4
@@ -36,13 +57,10 @@ jobs:
         with:
           terragrunt-version: 0.73.0
 
-      - name: Terraform Cache
-        uses: actions/cache@v4
-        with:
-          path: ~/.terraform.d/plugin-cache
-          key: ${{ runner.os }}-terraform-${{ hashFiles('**/.terraform.lock.hcl') }}
-          restore-keys: |
-            ${{ runner.os }}-terraform-
+      - name: Install tf-summarize
+        run: |
+          curl -sL https://github.com/dineshba/tf-summarize/releases/latest/download/tf-summarize_linux_amd64.tar.gz | tar xz
+          sudo mv tf-summarize /usr/local/bin/
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -50,51 +68,78 @@ jobs:
           role-to-assume: ${{ env.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Terragrunt Init
-        run: |
-          terragrunt run-all init --terragrunt-non-interactive
-        working-directory: live/dev/ap-south-2
-
-      - name: Terragrunt Plan DEV
-        if: github.event_name == 'pull_request'
+      - name: Terragrunt Init & Plan
         id: plan
         run: |
-          # Use tee to see full output in console, but sed to clean it for the PR file
-          terragrunt run-all plan --terragrunt-non-interactive -no-color 2>&1 | tee /dev/stderr | sed 's/^.*terraform: //g' > plan_output.txt
+          # 1. Init
+          terragrunt init --terragrunt-non-interactive
+          
+          # 2. Plan (Outputting to file and binary for summarize)
+          terragrunt plan --terragrunt-non-interactive -no-color -out=tfplan 2>&1 | tee /dev/stderr | sed 's/^.*terraform: //g' > plan_raw.txt
+          
+          # 3. Summarize
+          terraform show -json tfplan > tfplan.json
+          tf-summarize tfplan.json > summary.txt
+        working-directory: ${{ matrix.module }}
         continue-on-error: true
-        working-directory: live/dev/ap-south-2
 
-      - name: Post Plan to PR
-        if: github.event_name == 'pull_request'
-        uses: actions/github-script@v7
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const fs = require('fs');
-            const plan = fs.readFileSync('live/dev/ap-south-2/plan_output.txt', 'utf8');
-            const maxColumnLength = 65000;
-            const truncatedPlan = plan.length > maxColumnLength ? `${plan.substring(0, maxColumnLength)}... (truncated)` : plan;
-            
-            const output = `#### Terragrunt Plan (Dev) 🚀
-            <details><summary>Show Plan Output</summary>
+          # Use the directory name as the artifact name (escaped)
+          name: results-${{ strategy.job-index }}
+          path: |
+            ${{ matrix.module }}/summary.txt
+            ${{ matrix.module }}/plan_raw.txt
+          retention-days: 1
 
-            \`\`\`terraform
-            ${truncatedPlan}
-            \`\`\`
+  # 3. Stage: Reporting - Consolidate all plans into one PR comment
+  report:
+    name: 'Consolidate Report'
+    if: github.event_name == 'pull_request'
+    needs: [terragrunt]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: results
 
-            </details>
+      - name: Create Master Report
+        id: master-report
+        run: |
+          echo "### 🚀 Terragrunt Plan Summary" > report.md
+          echo "" >> report.md
+          
+          # Iterate through downloaded results
+          for dir in results/*; do
+            if [ -d "$dir" ]; then
+              # Get a pretty name for the module
+              MODULE_NAME=$(grep -oE "live/dev/ap-south-2/[^ ]+" "$dir/plan_raw.txt" | head -1 || echo "Module")
+              # Actually let's just use the dir name or pass the module path
+              
+              echo "#### 📦 Module: \`${dir#results/results-}\`" >> report.md
+              echo "\`\`\`" >> report.md
+              cat "$dir/summary.txt" >> report.md
+              echo "\`\`\`" >> report.md
+              
+              echo "<details><summary>Show Full Plan Output</summary>" >> report.md
+              echo "" >> report.md
+              echo "\`\`\`terraform" >> report.md
+              # Truncate if very long
+              head -c 50000 "$dir/plan_raw.txt" >> report.md
+              echo "\`\`\`" >> report.md
+              echo "</details>" >> report.md
+              echo "" >> report.md
+              echo "---" >> report.md
+            fi
+          done
+          
+          echo "*Pushed by: @${{ github.actor }}, Action: \`${{ github.event_name }}\`*" >> report.md
 
-            *Pushed by: @${{ github.actor }}, Action: \`${{ github.event_name }}\`*`;
-
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: output
-            })
-
-#      - name: Terragrunt Apply
-#        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-#        run: |
-#          terragrunt run-all apply --terragrunt-non-interactive
-#        working-directory: live/dev/ap-south-2
+      - name: Post Master Comment
+        uses: thollander/actions-comment-pull-request@v2
+        with:
+          filePath: report.md
+          comment_tag: terragrunt_plan_summary
+          mode: recreate
