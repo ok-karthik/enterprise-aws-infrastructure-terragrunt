@@ -105,33 +105,37 @@ jobs:
 
       - name: Generate Cost Estimates from Plan Files
         run: |
-          # Build a dynamic infracost.yml config — the only reliable way to name projects
-          # when reading raw JSON plan files (--project-name flag is ignored for JSON inputs)
-          echo "version: 0.1" > /tmp/infracost.yml
-          echo "projects:" >> /tmp/infracost.yml
-
-          FOUND=0
+          # Infracost ignores 'name' in config files for JSON plan inputs.
+          # We use jq to directly rename projects in the output JSON instead.
+          ESTIMATE_FILES=()
           while IFS= read -r plan_json; do
             # Extract: plans/<artifact-slug>/<module-path>/tfplan.json → <module-path>
             module_name=$(echo "$plan_json" | sed 's|plans/[^/]*/||' | sed 's|/tfplan.json$||')
-            echo "  - path: $(pwd)/$plan_json" >> /tmp/infracost.yml
-            echo "    name: $module_name" >> /tmp/infracost.yml
-            FOUND=1
+            out_file="$(dirname "$plan_json")/infracost.json"
+
+            # Generate the cost estimate
+            infracost breakdown \
+              --path "$(pwd)/$plan_json" \
+              --format json \
+              --out-file "$out_file" || true
+
+            # Rename the project directly in the JSON using jq
+            if [ -f "$out_file" ]; then
+              jq --arg name "$module_name" '.projects[0].name = $name' \
+                "$out_file" > "${out_file}.tmp" && mv "${out_file}.tmp" "$out_file"
+              echo "✅ Renamed project to: $module_name"
+              ESTIMATE_FILES+=("$out_file")
+            fi
           done < <(find plans -name "tfplan.json")
 
-          if [ "$FOUND" -eq 0 ]; then
+          if [ ${#ESTIMATE_FILES[@]} -eq 0 ]; then
             echo "No tfplan.json files found — ensure plan stage ran successfully"
             exit 0
           fi
 
-          echo "--- Generated infracost.yml ---"
-          cat /tmp/infracost.yml
-
-          # Run a single breakdown using the config file — names are now correct
-          infracost breakdown \
-            --config-file /tmp/infracost.yml \
-            --format json \
-            --out-file /tmp/infracost.json
+          # Merge all renamed estimates into one report
+          PATH_ARGS=$(printf ' --path %s' "${ESTIMATE_FILES[@]}")
+          infracost output $PATH_ARGS --format json --out-file /tmp/infracost.json
 
       - name: Post Infracost PR Comment
         continue-on-error: true  # Governance checks are a Cloud trial feature; don't block the pipeline
