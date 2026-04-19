@@ -2,25 +2,16 @@ include "root" {
   path = find_in_parent_folders("root.hcl")
 }
 
-terraform {
-  # Using the public terraform-aws-modules/s3-bucket module
-  # A local wrapper can be added to infrastructure-modules/s3/ in future if needed
-  source = "tfr://registry.terraform.io/terraform-aws-modules/s3-bucket/aws?version=4.6.0"
+include "envcommon" {
+  path   = "${dirname(find_in_parent_folders("root.hcl"))}/_envcommon/data/s3.hcl"
+  expose = true
 }
 
-locals {
-  # YOU MUST LOAD IT HERE AGAIN to use it in this file
-  env_vars = read_terragrunt_config(find_in_parent_folders("env.hcl"))
-  env      = local.env_vars.locals.env
-}
-
+# Unique bucket name suffix for prod logs
 inputs = {
-  # This is the only place we define values!
-  bucket_name = "tg-learning-bucket-${local.env}-12345" # Must be globally unique
-
+  bucket_name = "tg-learning-bucket-prod-app-logs-7788"
+  
   tags = {
-    Project     = "App Logs"
-    Environment = title(local.env)  # title() capitalizes first letter: dev→Dev, prod→Prod
-    Service     = "data-s3" # Required by FinOps tag policy
+    Project = "App Logs"
   }
 }
