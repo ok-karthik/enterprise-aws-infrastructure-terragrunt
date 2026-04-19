@@ -138,14 +138,20 @@ jobs:
           infracost output $PATH_ARGS --format json --out-file /tmp/infracost.json
 
       - name: Post Infracost PR Comment
-        continue-on-error: true  # Governance checks are a Cloud trial feature; don't block the pipeline
+        continue-on-error: true
         run: |
-          infracost comment github \
-            --path=/tmp/infracost.json \
-            --repo=${{ github.repository }} \
-            --github-token=${{ github.token }} \
-            --pull-request=${{ github.event.pull_request.number }} \
-            --behavior=update
+          # Render the comment locally from our jq-renamed JSON — bypasses Infracost Cloud caching
+          infracost output \
+            --path /tmp/infracost.json \
+            --format github-comment \
+            --out-file /tmp/infracost-comment.md
+
+      - name: Post Cost Comment to PR
+        uses: thollander/actions-comment-pull-request@v2
+        with:
+          filePath: /tmp/infracost-comment.md
+          comment_tag: infracost_cost_estimate
+          mode: recreate
 
   # ─────────────────────────────────────────────────────────────
   # 1. Stage: Discovery - Find all Terragrunt modules
