@@ -90,7 +90,7 @@ jobs:
   cost:
     name: '💰 Cost Estimate (Infracost)'
     if: github.event_name == 'pull_request'
-    needs: [terragrunt]
+    needs: [plan-dev, plan-prod]
     runs-on: ubuntu-latest
     steps:
       - name: Setup Infracost
@@ -105,17 +105,22 @@ jobs:
 
       - name: Generate Cost Estimates from Plan Files
         run: |
-          # Infracost ignores 'name' in config files for JSON plan inputs.
-          # We use jq to directly rename projects in the output JSON instead.
+          # Use the metadata.txt file we uploaded as the source of truth for the module name.
+          # This is much more reliable than parsing the folder paths.
           ESTIMATE_FILES=()
-          while IFS= read -r plan_json; do
-            # Extract: plans/<artifact-slug>/<module-path>/tfplan.json → <module-path>
-            module_name=$(echo "$plan_json" | sed 's|plans/[^/]*/||' | sed 's|/tfplan.json$||')
-            out_file="$(dirname "$plan_json")/infracost.json"
+          while IFS= read -r metadata_file; do
+            module_name=$(cat "$metadata_file")
+            plan_json="$(dirname "$metadata_file")/tfplan.json"
+            out_file="$(dirname "$metadata_file")/infracost.json"
+
+            if [ ! -f "$plan_json" ]; then
+              echo "⚠️ Skip: No tfplan.json found for $module_name"
+              continue
+            fi
 
             # Generate the cost estimate
             infracost breakdown \
-              --path "$(pwd)/$plan_json" \
+              --path "$plan_json" \
               --format json \
               --out-file "$out_file" || true
 
@@ -126,10 +131,10 @@ jobs:
               echo "✅ Renamed project to: $module_name"
               ESTIMATE_FILES+=("$out_file")
             fi
-          done < <(find plans -name "tfplan.json")
+          done < <(find plans -name "metadata.txt")
 
           if [ ${#ESTIMATE_FILES[@]} -eq 0 ]; then
-            echo "No tfplan.json files found — ensure plan stage ran successfully"
+            echo "No cost estimates generated — ensure plan stage ran successfully"
             exit 0
           fi
 
@@ -151,6 +156,7 @@ jobs:
         with:
           filePath: /tmp/infracost-comment.md
           comment_tag: infracost_cost_estimate
+          GITHUB_TOKEN: ${{ github.token }}
           mode: recreate
 
   # ─────────────────────────────────────────────────────────────
@@ -160,28 +166,35 @@ jobs:
     name: 'Discover Modules'
     runs-on: ubuntu-latest
     outputs:
-      modules: ${{ steps.set-modules.outputs.modules }}
+      dev_modules: ${{ steps.set-dev-modules.outputs.modules }}
+      prod_modules: ${{ steps.set-prod-modules.outputs.modules }}
     steps:
       - name: Git Checkout
         uses: actions/checkout@v4
 
-      - name: Find Modules
-        id: set-modules
+      - name: Discover Dev Modules
+        id: set-dev-modules
         run: |
-          # Find all directories with terragrunt.hcl, excluding the root and bootstrap
-          # This ensures we only run the pipeline for regional/live infrastructure
-          MODULES=$(find infrastructure-live -name "terragrunt.hcl" -not -path "*/.terragrunt-cache/*" | xargs -I {} dirname {} | jq -R . | jq -s -c .)
+          # Find all directories with terragrunt.hcl in infrastructure-live/dev
+          MODULES=$(find infrastructure-live/dev -name "terragrunt.hcl" -not -path "*/.terragrunt-cache/*" | xargs -I {} dirname {} | jq -R . | jq -s -c .)
+          echo "modules=$MODULES" >> $GITHUB_OUTPUT
+
+      - name: Discover Prod Modules
+        id: set-prod-modules
+        run: |
+          # Find all directories with terragrunt.hcl in infrastructure-live/prod
+          MODULES=$(find infrastructure-live/prod -name "terragrunt.hcl" -not -path "*/.terragrunt-cache/*" | xargs -I {} dirname {} | jq -R . | jq -s -c .)
           echo "modules=$MODULES" >> $GITHUB_OUTPUT
 
   # 2. Stage: Execution - Run Parallel Plans
-  terragrunt:
-    name: 'Plan: ${{ matrix.module }}'
+  plan-dev:
+    name: 'Plan (Dev): ${{ matrix.module }}'
     needs: [discover, lint, security]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        module: ${{ fromJson(needs.discover.outputs.modules) }}
+        module: ${{ fromJson(needs.discover.outputs.dev_modules) || fromJson('[]') }}
     env:
       AWS_REGION: ${{ vars.AWS_REGION }}
       AWS_ROLE_ARN: ${{ vars.AWS_ROLE_ARN }}
@@ -270,10 +283,95 @@ jobs:
             ${{ matrix.module }}/tfplan.json
           retention-days: 1
 
+  # 3. Stage: Execution - Run Parallel Plans (Prod)
+  # ─────────────────────────────────────────────────────────────
+  plan-prod:
+    name: 'Plan (Prod): ${{ matrix.module }}'
+    needs: [discover, lint, security]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        module: ${{ fromJson(needs.discover.outputs.prod_modules) || fromJson('[]') }}
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      AWS_ROLE_ARN: ${{ vars.AWS_ROLE_ARN }}
+      TG_LOG_CUSTOM_FORMAT: "%msg"
+    
+    steps:
+      - name: Git Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.10.5
+
+      - name: Setup Terragrunt
+        uses: autero1/action-terragrunt@v3
+        with:
+          terragrunt-version: 0.73.0
+
+      - name: Install tf-summarize
+        run: |
+          curl -sL https://github.com/dineshba/tf-summarize/releases/latest/download/tf-summarize_linux_amd64.tar.gz | tar xz
+          mkdir -p $HOME/.local/bin
+          mv tf-summarize $HOME/.local/bin/
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Terragrunt Init & Plan
+        id: plan
+        run: |
+          echo "PENDING" > summary.txt
+          if ! terragrunt init --non-interactive; then
+            echo "INIT FAILED" > summary.txt
+            exit 1
+          fi
+          PLAN_FILE="$(pwd)/tfplan.bin"
+          if ! terragrunt plan --non-interactive -no-color -out="$PLAN_FILE" 2>&1 | tee /dev/stderr | sed 's/^.*terraform: //g' > plan_raw.txt; then
+            echo "PLAN FAILED" > summary.txt
+            exit 1
+          fi
+          if terragrunt show -json "$PLAN_FILE" > tfplan.json 2>show_err.txt && \
+             tf-summarize tfplan.json > summary_new.txt 2>sum_err.txt; then
+            mv summary_new.txt summary.txt
+          else
+            echo "SUMMARIZE FAILED (Plan passed)" > summary.txt
+            cat show_err.txt >> summary.txt || true
+            cat sum_err.txt >> summary.txt || true
+          fi
+        working-directory: ${{ matrix.module }}
+        continue-on-error: true
+
+      - name: Prepare Metadata
+        if: always()
+        run: |
+          echo "${{ matrix.module }}" > ${{ matrix.module }}/metadata.txt
+          SLUG=$(echo "${{ matrix.module }}" | sed 's/\//-/g')
+          echo "SLUG=$SLUG" >> $GITHUB_ENV
+
+      - name: Upload Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: plan-${{ env.SLUG }}
+          path: |
+            ${{ matrix.module }}/summary.txt
+            ${{ matrix.module }}/plan_raw.txt
+            ${{ matrix.module }}/metadata.txt
+            ${{ matrix.module }}/tfplan.json
+          retention-days: 1
+
   report:
     name: 'Consolidate Report'
     if: github.event_name == 'pull_request'
-    needs: [terragrunt]
+    needs: [plan-dev, plan-prod]
     runs-on: ubuntu-latest
     steps:
       - name: Download Artifacts
@@ -353,3 +451,82 @@ jobs:
           filePath: report.md
           comment_tag: terragrunt_plan_summary
           mode: recreate
+
+  # ─────────────────────────────────────────────────────────────
+  # 4. Stage: Deployment - Apply Changes (Manual Gates)
+  # ─────────────────────────────────────────────────────────────
+  apply-dev:
+    name: 'Apply (Dev): ${{ matrix.module }}'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [plan-dev, discover]
+    runs-on: ubuntu-latest
+    environment: dev
+    strategy:
+      fail-fast: false
+      matrix:
+        module: ${{ fromJson(needs.discover.outputs.dev_modules) || fromJson('[]') }}
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      AWS_ROLE_ARN: ${{ vars.AWS_ROLE_ARN }}
+    steps:
+      - name: Git Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.10.5
+
+      - name: Setup Terragrunt
+        uses: autero1/action-terragrunt@v3
+        with:
+          terragrunt-version: 0.73.0
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Terragrunt Apply
+        run: |
+          terragrunt apply --terragrunt-non-interactive -auto-approve
+        working-directory: ${{ matrix.module }}
+
+  apply-prod:
+    name: 'Apply (Prod): ${{ matrix.module }}'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [apply-dev, plan-prod, discover]
+    runs-on: ubuntu-latest
+    environment: prod
+    strategy:
+      fail-fast: false
+      matrix:
+        module: ${{ fromJson(needs.discover.outputs.prod_modules) || fromJson('[]') }}
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      AWS_ROLE_ARN: ${{ vars.AWS_ROLE_ARN }}
+    steps:
+      - name: Git Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.10.5
+
+      - name: Setup Terragrunt
+        uses: autero1/action-terragrunt@v3
+        with:
+          terragrunt-version: 0.73.0
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Terragrunt Apply
+        run: |
+          terragrunt apply --terragrunt-non-interactive -auto-approve
+        working-directory: ${{ matrix.module }}

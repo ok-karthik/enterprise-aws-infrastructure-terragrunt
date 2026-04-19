@@ -1,0 +1,79 @@
+name: 'Terragrunt Teardown (Manual)'
+
+# This workflow takes manual inputs for environment selection and safety confirmation.
+# Slating Checkov CKV_GHA_7 as a skip because inputs are required for surgical teardown.
+# checkov:skip=CKV_GHA_7: Manual inputs are required for environment selection and safety confirmation.
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to destroy (dev or prod)'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - prod
+      confirm_destruction:
+        description: 'Type "DESTROY" to confirm'
+        required: true
+        type: string
+
+permissions:
+  contents: read      # Minimum required
+  id-token: write      # Required for OIDC AWS authentication
+
+jobs:
+  discover:
+    name: 'Discover Modules'
+    runs-on: ubuntu-latest
+    outputs:
+      modules: ${{ steps.set-modules.outputs.modules }}
+    steps:
+      - name: Git Checkout
+        uses: actions/checkout@v4
+
+      - name: Discover Modules
+        id: set-modules
+        run: |
+          # Find all directories with terragrunt.hcl in the selected environment
+          MODULES=$(find infrastructure-live/${{ github.event.inputs.environment }} -name "terragrunt.hcl" -not -path "*/.terragrunt-cache/*" | xargs -I {} dirname {} | jq -R . | jq -s -c .)
+          echo "modules=$MODULES" >> $GITHUB_OUTPUT
+
+  destroy:
+    name: 'Destroy: ${{ matrix.module }}'
+    needs: [discover]
+    if: github.event.inputs.confirm_destruction == 'DESTROY'
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment }}
+    strategy:
+      fail-fast: false
+      matrix:
+        module: ${{ fromJson(needs.discover.outputs.modules) || fromJson('[]') }}
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      AWS_ROLE_ARN: ${{ vars.AWS_ROLE_ARN }}
+    steps:
+      - name: Git Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.10.5
+
+      - name: Setup Terragrunt
+        uses: autero1/action-terragrunt@v3
+        with:
+          terragrunt-version: 0.73.0
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Terragrunt Destroy
+        run: |
+          terragrunt destroy --terragrunt-non-interactive -auto-approve
+        working-directory: ${{ matrix.module }}
