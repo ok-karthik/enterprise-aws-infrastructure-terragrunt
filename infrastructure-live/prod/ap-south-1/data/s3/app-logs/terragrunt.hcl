@@ -19,6 +19,8 @@ inputs = {
   bucket_name = "tg-learning-bucket-${local.env}-12345" # Must be globally unique
 
   tags = {
-    Project = "App Logs"
+    Project     = "App Logs"
+    Environment = title(local.env)  # title() capitalizes first letter: dev→Dev, prod→Prod
+    Service     = "data-s3" # Required by FinOps tag policy
   }
 }

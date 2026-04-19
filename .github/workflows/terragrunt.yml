@@ -108,9 +108,14 @@ jobs:
           # Infracost can read Terraform JSON plan files directly — no Terragrunt/AWS needed!
           ESTIMATE_FILES=()
           while IFS= read -r plan_json; do
+            # Extract the human-readable module name from the path
+            # Path structure: plans/<artifact-slug>/<module-path>/tfplan.json
+            module_name=$(echo "$plan_json" | sed 's|plans/[^/]*/||' | sed 's|/tfplan.json$||')
             out_file="$(dirname "$plan_json")/infracost.json"
+
             infracost breakdown \
               --path "$plan_json" \
+              --project-name "$module_name" \
               --format json \
               --out-file "$out_file" || true
             ESTIMATE_FILES+=("$out_file")
@@ -126,6 +131,7 @@ jobs:
           infracost output $PATH_ARGS --format json --out-file /tmp/infracost.json
 
       - name: Post Infracost PR Comment
+        continue-on-error: true  # Governance checks are a Cloud trial feature; don't block the pipeline
         run: |
           infracost comment github \
             --path=/tmp/infracost.json \

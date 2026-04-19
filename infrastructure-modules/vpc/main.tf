@@ -43,6 +43,7 @@ module "vpc" {
       ManagedBy     = "Terragrunt-Wrapper"
       SecurityLevel = "High"
       Compliance    = "SOC2-Prototype"
+      Service       = "network-vpc"  # Required by FinOps tag policy
     },
     var.tags
   )

@@ -38,6 +38,7 @@ module "eks" {
       ManagedBy     = "Terragrunt-Wrapper"
       SecurityLevel = "High"
       K8sAccess     = "IAM-Only"
+      Service       = "compute-eks"  # Required by FinOps tag policy
     },
     var.tags
   )

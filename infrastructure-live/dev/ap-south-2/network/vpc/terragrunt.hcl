@@ -32,6 +32,6 @@ inputs = {
   # NOTICE: Tagging is now handled automatically by the wrapper module!
   tags = {
     Project     = "Infrastructure-Automation"
-    Environment = local.env
+    Environment = title(local.env)  # title() capitalizes first letter: dev→Dev, prod→Prod
   }
 }

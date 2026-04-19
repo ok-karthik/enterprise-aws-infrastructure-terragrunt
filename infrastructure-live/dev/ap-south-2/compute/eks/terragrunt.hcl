@@ -43,6 +43,6 @@ inputs = {
   
   tags = {
     Project     = "Infrastructure-Automation"
-    Environment = local.env
+    Environment = title(local.env)  # title() capitalizes first letter: dev→Dev, prod→Prod
   }
 }
