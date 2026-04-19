@@ -62,7 +62,7 @@ The core of this platform is a sophisticated **5-Stage Pipeline** that transitio
 > **View our professional PR experience:**
 >
 > <p align="center">
->   <img src=".github/assets/terragrunt-plan-summary.png" width="700" alt="Consolidated Plan Summary">
+>   <img src=".github/assets/terragrunt-plan-summary.png" width="600" alt="Consolidated Plan Summary">
 > </p>
 
 ---
