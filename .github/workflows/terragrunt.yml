@@ -228,6 +228,11 @@ jobs:
           role-to-assume: ${{ env.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
+      - name: Setup Conftest
+        uses: open-policy-agent/setup-conftest@v1
+        with:
+          token: ${{ github.token }}
+
       - name: Terragrunt Init & Plan
         id: plan
         run: |
@@ -262,6 +267,12 @@ jobs:
           fi
         working-directory: ${{ matrix.module }}
         continue-on-error: true
+
+      - name: ⚖️ Policy Gate (OPA)
+        run: |
+          echo "Running Governance checks on ${{ matrix.module }}..."
+          conftest test tfplan.json --policy $GITHUB_WORKSPACE/policies/terraform
+        working-directory: ${{ matrix.module }}
 
       - name: Prepare Metadata
         if: always()
@@ -325,6 +336,11 @@ jobs:
           role-to-assume: ${{ env.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
+      - name: Setup Conftest
+        uses: open-policy-agent/setup-conftest@v1
+        with:
+          token: ${{ github.token }}
+
       - name: Terragrunt Init & Plan
         id: plan
         run: |
@@ -348,6 +364,12 @@ jobs:
           fi
         working-directory: ${{ matrix.module }}
         continue-on-error: true
+
+      - name: ⚖️ Policy Gate (OPA)
+        run: |
+          echo "Running Governance checks on ${{ matrix.module }}..."
+          conftest test tfplan.json --policy $GITHUB_WORKSPACE/policies/terraform
+        working-directory: ${{ matrix.module }}
 
       - name: Prepare Metadata
         if: always()

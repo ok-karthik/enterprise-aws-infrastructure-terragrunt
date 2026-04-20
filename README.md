@@ -7,6 +7,10 @@
 
 A production-grade, multi-environment AWS platform architecture designed for scalability, security governance, and FinOps efficiency. This project demonstrates **Staff Engineer level patterns** in Infrastructure-as-Code (IaC) management, focusing on modularity, policy-driven security, and automated delivery.
 
+<p align="center">
+  <img src=".github/assets/architecture-infographic.png" width="900" alt="Enterprise Architecture Plan">
+</p>
+
 ---
 
 ## 🏛️ Project Architecture
@@ -71,6 +75,17 @@ The core of this platform is a sophisticated **5-Stage Pipeline** that transitio
 
 - **OIDC Authentication**: Zero long-lived AWS keys. All deployments use short-lived, trust-based OIDC tokens (OpenID Connect).
 - **Least Privilege**: The CI/CD role is strictly scoped to specific IAM actions and repository branches.
+
+### ⚖️ Governance & Policy (OPA)
+While tools like Checkov handle general security, we use **Open Policy Agent (OPA)** via **Conftest** to enforce custom organizational "laws." These are checked against the Terraform Plan JSON before any deployment.
+
+*   **🏷️ Mandatory Tagging**: Enforces `Service`, `Environment`, and `Project` tags on all resources to ensure 100% cost-allocation visibility.
+*   **💻 Instance Modernization**: Prevents the use of legacy AWS instance types (e.g., `t2.*`), forcing teams to use modern Nitro-based hardware for better price-performance.
+*   **🔌 Sequential Dependency Gates**: Automated validation using `terragrunt run-all` to respect the infrastructure dependency graph (e.g., VPC must be ready before EKS).
+
+> [!TIP]
+> **Learning Rego:** Our policies are written in **Rego**, a declarative language optimized for complex logic. Check out the [policies/terraform](policies/terraform) directory to see how we programmatically define these enterprise guardrails.
+
 - **Hierarchical Governance**: Global policies are enforced at the `root.hcl` and `_envcommon` layers, ensuring that every subsystem inherits standard tagging and security settings.
 
 ---
