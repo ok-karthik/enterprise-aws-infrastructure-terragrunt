@@ -5,11 +5,11 @@ inputs:
   terraform_version:
     description: 'Version of Terraform to install'
     required: false
-    default: '1.10.5'
+    default: '1.14.8'
   terragrunt_version:
     description: 'Version of Terragrunt to install'
     required: false
-    default: '0.73.0'
+    default: '1.0.1'
   tflint_version:
     description: 'Version of TFLint to install'
     required: false
@@ -44,16 +44,16 @@ runs:
       shell: bash
       run: |
         if ! command -v conftest &> /dev/null; then
-          # Get the full tag name (v0.x.x) and the version without 'v' (0.x.x)
-          LATEST_TAG=$(curl -s https://api.github.com/repos/open-policy-agent/conftest/releases/latest | jq -r .tag_name)
-          VERSION=$(echo "$LATEST_TAG" | sed 's/v//')
+          VERSION="0.56.0"
+          TAG="v${VERSION}"
           
           # Map architectures to Conftest naming
           ARCH=$(uname -m)
           [ "$ARCH" == "aarch64" ] && ARCH="arm64"
+          [ "$ARCH" == "x86_64" ] && ARCH="amd64"
           
-          echo "Installing Conftest ${LATEST_TAG} for Linux_${ARCH}..."
-          curl -sL "https://github.com/open-policy-agent/conftest/releases/download/${LATEST_TAG}/conftest_${VERSION}_Linux_${ARCH}.tar.gz" | tar xz
+          echo "Installing Conftest ${TAG} for Linux_${ARCH}..."
+          curl -sL "https://github.com/open-policy-agent/conftest/releases/download/${TAG}/conftest_${VERSION}_Linux_${ARCH}.tar.gz" | tar xz
           mkdir -p $HOME/.local/bin
           mv conftest $HOME/.local/bin/
           echo "$HOME/.local/bin" >> $GITHUB_PATH
