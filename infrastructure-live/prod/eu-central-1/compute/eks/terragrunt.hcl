@@ -12,10 +12,4 @@ inputs = {
   min_size     = 1
   max_size     = 3
   desired_size = 2 # Slightly higher default for prod parity
-  
-  # Ensure compliance with Policy-as-Code gates
-  tags = {
-    Environment = title(local.env)
-    Service     = "kubernetes"
-  }
 }

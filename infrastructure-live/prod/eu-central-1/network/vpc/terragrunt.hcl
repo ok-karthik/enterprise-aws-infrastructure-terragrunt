@@ -11,9 +11,4 @@ include "envcommon" {
 inputs = {
   cidr = "10.1.0.0/16"
   
-  # Ensure compliance with Policy-as-Code gates
-  tags = {
-    Environment = title(local.env)
-    Service     = "network"
-  }
 }
