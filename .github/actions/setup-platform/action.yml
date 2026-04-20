@@ -40,10 +40,19 @@ runs:
       with:
         tflint_version: ${{ inputs.tflint_version }}
 
-    - name: Setup Conftest
-      uses: artis3n/setup-conftest@v2
-      with:
-        token: ${{ github.token }}
+    - name: Install Conftest
+      shell: bash
+      run: |
+        if ! command -v conftest &> /dev/null; then
+          LATEST_VERSION=$(curl -s https://api.github.com/repos/open-policy-agent/conftest/releases/latest | jq -r .name | sed 's/v//')
+          ARCH=$(uname -m)
+          [ "$ARCH" == "x86_64" ] && ARCH="amd64"
+          [ "$ARCH" == "aarch64" ] && ARCH="arm64"
+          curl -sL "https://github.com/open-policy-agent/conftest/releases/download/v${LATEST_VERSION}/conftest_${LATEST_VERSION}_Linux_${ARCH}.tar.gz" | tar xz
+          mkdir -p $HOME/.local/bin
+          mv conftest $HOME/.local/bin/
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+        fi
 
     - name: Install tf-summarize
       shell: bash
