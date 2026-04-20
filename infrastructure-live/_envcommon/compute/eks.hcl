@@ -27,10 +27,10 @@ inputs = {
   vpc_id     = dependency.vpc.outputs.vpc_id
   subnet_ids = dependency.vpc.outputs.private_subnets
 
-  # Default Scaling
-  min_size     = 1
+  # --- COST OPTIMIZATION: Dynamic Scaling ---
+  min_size     = local.env_vars.locals.min_size
   max_size     = 3
-  desired_size = 1
+  desired_size = local.env_vars.locals.desired_size
   
   tags = {
     Project     = "Infrastructure-Automation"

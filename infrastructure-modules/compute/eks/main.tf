@@ -30,6 +30,10 @@ module "eks" {
       max_size     = var.max_size
       desired_size = var.desired_size
 
+      # Force custom launch template to ensure GP3 overrides defaults
+      use_custom_launch_template = true
+      disk_size                  = null
+
       # --- FINOPS: Explicit GP3 Modernization ---
       block_device_mappings = {
         xvda = {
