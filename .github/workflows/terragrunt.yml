@@ -12,6 +12,12 @@ permissions:
   pull-requests: write
   security-events: write
 
+env:
+  # Force all actions to use Node 24 to avoid deprecation warnings
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+  # Global Region for easy reference
+  AWS_REGION: ${{ vars.AWS_REGION }}
+
 jobs:
   # ─────────────────────────────────────────────────────────────
   # Gate 1: Static Analysis (Pre-Plan Quality)
@@ -127,9 +133,35 @@ jobs:
 
       - name: Generate Cost Estimate
         run: |
-          # Use the native config file for multi-project discovery
-          # We point Infracost to the results directory where all tfplan.json files are
-          infracost breakdown --path results --config-file infracost-config.yml --format json --out-file /tmp/infracost.json
+          # Debug: Show the downloaded artifact structure
+          echo "Listing results directory structure:"
+          ls -R results
+          
+          # Dynamically build the Infracost config
+          echo "version: 0.1" > infracost-config.yml
+          echo "projects:" >> infracost-config.yml
+          
+          PLAN_COUNT=0
+          while read -r plan; do
+            slug=$(basename $(dirname "$plan"))
+            echo "  - path: $plan" >> infracost-config.yml
+            echo "    name: $slug" >> infracost-config.yml
+            PLAN_COUNT=$((PLAN_COUNT + 1))
+          done < <(find results -name "tfplan.json")
+          
+          echo "Found $PLAN_COUNT tfplan.json files."
+          echo "Generated infracost-config.yml:"
+          cat infracost-config.yml
+          
+          if [ "$PLAN_COUNT" -eq 0 ]; then
+            echo "Warning: No plan files found. Skipping Infracost."
+            exit 0
+          fi
+          
+          # Run breakdown using ONLY the generated config
+          infracost breakdown --config-file infracost-config.yml \
+                             --format json \
+                             --out-file /tmp/infracost.json
 
       - name: Post Cost Comment to PR
         run: |
