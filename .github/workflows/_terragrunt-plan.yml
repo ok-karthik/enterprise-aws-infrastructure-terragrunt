@@ -81,8 +81,8 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          # Use native GHA expression for 100% reliable naming across jobs
-          name: plan-${{ replace(matrix.module.path, '/', '-') }}
+          # Use the pre-calculated slug from the discovery job
+          name: plan-${{ matrix.module.slug }}
           path: dist/
           retention-days: 1
 
@@ -107,7 +107,8 @@ jobs:
       - name: Download Plan JSON
         uses: actions/download-artifact@v4
         with:
-          name: plan-${{ replace(matrix.module.path, '/', '-') }}
+          # Use the pre-calculated slug from the discovery job
+          name: plan-${{ matrix.module.slug }}
           path: plan_data
 
       - name: ⚖️ Policy Gate (OPA)

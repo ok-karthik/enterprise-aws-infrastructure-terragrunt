@@ -67,15 +67,15 @@ jobs:
       - name: Discover Dev Modules
         id: set-dev-modules
         run: |
-          # Find all directories and create objects with clean names (strip infrastructure-live/)
-          MODULES=$(find infrastructure-live/dev -name "terragrunt.hcl" -not -path "*/.terragrunt-cache/*" | xargs -I {} dirname {} | jq -R '{"path": ., "name": sub("infrastructure-live/"; "")}' | jq -s -c .)
+          # Find all directories and create objects with clean names and safe slugs (slashes to dashes)
+          MODULES=$(find infrastructure-live/dev -name "terragrunt.hcl" -not -path "*/.terragrunt-cache/*" | xargs -I {} dirname {} | jq -R '{"path": ., "name": sub("infrastructure-live/"; ""), "slug": sub("infrastructure-live/"; "") | gsub("/"; "-")}' | jq -s -c .)
           echo "modules=$MODULES" >> $GITHUB_OUTPUT
 
       - name: Discover Prod Modules
         id: set-prod-modules
         run: |
-          # Find all directories and create objects with clean names (strip infrastructure-live/)
-          MODULES=$(find infrastructure-live/prod -name "terragrunt.hcl" -not -path "*/.terragrunt-cache/*" | xargs -I {} dirname {} | jq -R '{"path": ., "name": sub("infrastructure-live/"; "")}' | jq -s -c .)
+          # Find all directories and create objects with clean names and safe slugs (slashes to dashes)
+          MODULES=$(find infrastructure-live/prod -name "terragrunt.hcl" -not -path "*/.terragrunt-cache/*" | xargs -I {} dirname {} | jq -R '{"path": ., "name": sub("infrastructure-live/"; ""), "slug": sub("infrastructure-live/"; "") | gsub("/"; "-")}' | jq -s -c .)
           echo "modules=$MODULES" >> $GITHUB_OUTPUT
 
   # ─────────────────────────────────────────────────────────────
