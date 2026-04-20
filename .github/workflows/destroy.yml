@@ -23,15 +23,19 @@ permissions:
   contents: read      # Minimum required
   id-token: write      # Required for OIDC AWS authentication
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+  AWS_REGION: ${{ vars.AWS_REGION }}
+
 jobs:
   discover:
-    name: 'Discover Modules'
+    name: '🔍 Discover Modules'
     runs-on: ubuntu-latest
     outputs:
       modules: ${{ steps.set-modules.outputs.modules }}
     steps:
       - name: Git Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Discover Modules
         id: set-modules
@@ -39,28 +43,26 @@ jobs:
           # Find all directories with terragrunt.hcl in the selected environment
           MODULES=$(find infrastructure-live/${{ github.event.inputs.environment }} -name "terragrunt.hcl" -not -path "*/.terragrunt-cache/*" | xargs -I {} dirname {} | jq -R . | jq -s -c .)
           echo "modules=$MODULES" >> $GITHUB_OUTPUT
+          echo "Found modules: $MODULES"
 
   destroy:
-    name: 'Destroy'
+    name: '🌪️ Destroy: ${{ github.event.inputs.environment }}'
     needs: [discover]
     if: github.event.inputs.confirm_destruction == 'DESTROY'
     runs-on: ubuntu-latest
     environment: ${{ github.event.inputs.environment }}
-    env:
-      AWS_REGION: ${{ vars.AWS_REGION }}
-      AWS_ROLE_ARN: ${{ vars.AWS_ROLE_ARN }}
     steps:
       - name: Git Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Platform
         uses: ./.github/actions/setup-platform
         with:
           aws_region: ${{ env.AWS_REGION }}
-          aws_role_arn: ${{ env.AWS_ROLE_ARN }}
+          aws_role_arn: ${{ vars.AWS_ROLE_ARN }}
 
       - name: Terragrunt Destroy (Sequential)
         run: |
-          # Using run-all ensures dependencies are respected during cleanup
-          terragrunt run-all destroy --terragrunt-non-interactive -auto-approve
+          # Terragrunt 1.x uses 'run --all' and '--non-interactive'
+          terragrunt run --all destroy --non-interactive -auto-approve
         working-directory: infrastructure-live/${{ github.event.inputs.environment }}
