@@ -1,0 +1,105 @@
+name: 'Terragrunt Plan Job'
+
+# Reusable workflow to handle matrix planning and high-precision governance
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+      module_list:
+        required: true
+        type: string
+      aws_region:
+        required: true
+        type: string
+      aws_role_arn:
+        required: true
+        type: string
+
+jobs:
+  plan:
+    name: 'Plan (${{ inputs.environment }}): ${{ matrix.module }}'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        module: ${{ fromJson(inputs.module_list) }}
+    env:
+      AWS_REGION: ${{ inputs.aws_region }}
+      AWS_ROLE_ARN: ${{ inputs.aws_role_arn }}
+      TG_LOG_CUSTOM_FORMAT: "%msg"
+    
+    steps:
+      - name: Git Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Platform
+        uses: ./.github/actions/setup-platform
+        with:
+          aws_region: ${{ env.AWS_REGION }}
+          aws_role_arn: ${{ env.AWS_ROLE_ARN }}
+
+      - name: Terragrunt Init & Plan
+        id: plan
+        run: |
+          echo "PENDING" > summary.txt
+          
+          # 1. Init
+          if ! terragrunt init --non-interactive; then
+            echo "INIT FAILED" > summary.txt
+            exit 1
+          fi
+          
+          # 2. Plan
+          PLAN_FILE="$(pwd)/tfplan.bin"
+          if ! terragrunt plan --non-interactive -no-color -out="$PLAN_FILE" 2>&1 | tee /dev/stderr | sed 's/^.*terraform: //g' > plan_raw.txt; then
+            echo "PLAN FAILED" > summary.txt
+            exit 1
+          fi
+          
+          # 3. Generate JSON for Governance Scanning
+          if ! terragrunt show -json "$PLAN_FILE" > tfplan.json; then
+             echo "JSON EXPORT FAILED" > summary.txt
+             exit 1
+          fi
+
+          # 4. Summarize for PR Comment
+          tf-summarize tfplan.json > summary.txt || echo "SUMMARIZE FAILED (Plan passed)" > summary.txt
+        working-directory: ${{ matrix.module }}
+        continue-on-error: true
+
+      # ─────────────────────────────────────────────────────────────
+      # Gate 2: Precision Analysis (Post-Plan)
+      # ─────────────────────────────────────────────────────────────
+      
+      - name: ⚖️ Policy Gate (OPA)
+        run: |
+          echo "Running Governance checks on ${{ matrix.module }}..."
+          conftest test tfplan.json --policy $GITHUB_WORKSPACE/policies/terraform
+        working-directory: ${{ matrix.module }}
+
+      - name: 🛡️ Security Gate (Checkov Plan)
+        run: |
+          echo "Running Deep Security Scan on Plan JSON..."
+          checkov -f tfplan.json --soft-fail
+        working-directory: ${{ matrix.module }}
+
+      - name: Prepare Artifact Metadata
+        if: always()
+        run: |
+          echo "${{ matrix.module }}" > ${{ matrix.module }}/metadata.txt
+          SLUG=$(echo "${{ matrix.module }}" | sed 's/\//-/g')
+          echo "SLUG=$SLUG" >> $GITHUB_ENV
+
+      - name: Upload Plan Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: plan-${{ env.SLUG }}
+          path: |
+            ${{ matrix.module }}/summary.txt
+            ${{ matrix.module }}/plan_raw.txt
+            ${{ matrix.module }}/metadata.txt
+            ${{ matrix.module }}/tfplan.json
+          retention-days: 1

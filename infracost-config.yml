@@ -1,0 +1,19 @@
+version: 0.1
+
+# Infracost configuration for automating multi-project discovery
+# This eliminates the need for complex Bash loops in GitHub Actions.
+
+projects:
+  - path: infrastructure-live/dev
+    name: dev
+    include_all_paths: true
+    exclude_paths:
+      - "**/_envcommon/**"
+      - "**/.terragrunt-cache/**"
+
+  - path: infrastructure-live/prod
+    name: prod
+    include_all_paths: true
+    exclude_paths:
+      - "**/_envcommon/**"
+      - "**/.terragrunt-cache/**"

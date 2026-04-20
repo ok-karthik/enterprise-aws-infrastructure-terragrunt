@@ -41,15 +41,21 @@ This platform follows a **Hierarchical Blueprint Pattern** using Terragrunt. It 
 
 The core of this platform is a sophisticated **5-Stage Pipeline** that transitions infrastructure from code to production with multiple security and cost gates.
 
-### Pipeline Workflow
+### 🚀 Dual-Gate Pipeline Architecture
+The platform utilizes a **Modular CI/CD Orchestration** model built on GitHub Reusable Workflows and Composite Actions. This ensures a DRY (Don't Repeat Yourself) pipeline that is both fast and extremely secure.
 
-<p align="center">
-  <img src=".github/assets/pipeline-workflow.png" width="800" alt="Pipeline Graph">
-</p>
+1.  **Gate 1: High-Speed Static Analysis (HCL)**
+    *   **Goal**: Immediate feedback for developers.
+    *   **Tools**: TFLint (Quality), Trivy (IaC Security), Checkov (Basic HCL misconfigs).
+    *   **Scope**: Scans the raw code before any AWS credentials are required.
 
-1.  **🔍 Code Quality**: Recursive `TFLint` validation against AWS best practices.
-2.  **🛡️ Security Gate**: Dual-engine scanning using `Checkov` (IaC compliance) and `Trivy` (vulnerability detection).
-3.  **💰 Cost Visibility**: Real-time cost estimation per PR using `Infracost`, allowing for FinOps-driven engineering decisions.
+2.  **Gate 2: High-Precision Governance (JSON)**
+    *   **Goal**: Final safety check before deployment.
+    *   **Tools**: **Checkov (JSON Plan)**, **OPA (Rego laws)**.
+    *   **Scope**: Scans the actual Terraform Plan JSON after variables and logic are resolved, catching "hidden" security leaks.
+
+> [!NOTE]
+> **Modular Design:** All tool installations and AWS logins are centralized in a **Local Composite Action**, ensuring that our CI/CD maintenance overhead is near zero.
 
 <p align="center">
   <img src=".github/assets/infracost-summary.png" width="800" alt="Infracost Report">

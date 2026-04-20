@@ -1,0 +1,63 @@
+name: 'Setup Infrastructure Platform'
+description: 'Centralized setup for Terraform, Terragrunt, TFLint, Conftest, and AWS credentials'
+
+inputs:
+  terraform_version:
+    description: 'Version of Terraform to install'
+    required: false
+    default: '1.10.5'
+  terragrunt_version:
+    description: 'Version of Terragrunt to install'
+    required: false
+    default: '0.73.0'
+  tflint_version:
+    description: 'Version of TFLint to install'
+    required: false
+    default: 'v0.54.0'
+  aws_region:
+    description: 'AWS Region for credentials'
+    required: false
+  aws_role_arn:
+    description: 'AWS Role ARN for OIDC authentication'
+    required: false
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: ${{ inputs.terraform_version }}
+        terraform_wrapper: false
+
+    - name: Setup Terragrunt
+      uses: autero1/action-terragrunt@v3
+      with:
+        terragrunt-version: ${{ inputs.terragrunt_version }}
+
+    - name: Setup TFLint
+      uses: terraform-linters/setup-tflint@v4
+      with:
+        tflint_version: ${{ inputs.tflint_version }}
+
+    - name: Setup Conftest
+      uses: open-policy-agent/setup-conftest@v1
+      with:
+        token: ${{ github.token }}
+
+    - name: Install tf-summarize
+      shell: bash
+      run: |
+        if ! command -v tf-summarize &> /dev/null; then
+          curl -sL https://github.com/dineshba/tf-summarize/releases/latest/download/tf-summarize_linux_amd64.tar.gz | tar xz
+          mkdir -p $HOME/.local/bin
+          mv tf-summarize $HOME/.local/bin/
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+        fi
+
+    - name: Configure AWS credentials
+      if: ${{ inputs.aws_role_arn != '' }}
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ inputs.aws_role_arn }}
+        aws-region: ${{ inputs.aws_region }}
