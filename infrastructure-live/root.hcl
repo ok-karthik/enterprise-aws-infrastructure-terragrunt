@@ -32,6 +32,8 @@ provider "aws" {
       Environment = "${local.env}"
       ManagedBy   = "Terragrunt"
       Account     = "${local.account_alias}"
+      Project     = "enterprise-aws-platform"
+      Service     = "${path_relative_to_include()}"
     }
   }
 }
