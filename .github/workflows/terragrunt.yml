@@ -63,7 +63,8 @@ jobs:
 
       - name: Terragrunt Plan (All)
         run: |
-          terragrunt run --all plan --non-interactive -no-color -out=tfplan.bin
+          # Terragrunt 1.x requires '--' for passthrough flags like -out
+          terragrunt run --all plan --non-interactive -no-color -- -out=tfplan.bin
           # Convert all binary plans to JSON for the audit gates
           find . -name "tfplan.bin" -print0 | xargs -0 -I {} sh -c 'terragrunt show -json "{}" > "$(dirname "{}")/tfplan.json"'
         working-directory: infrastructure-live/dev
@@ -72,8 +73,6 @@ jobs:
         run: |
           mkdir -p dist
           find infrastructure-live/dev -name "tfplan.json" | cpio -pdm dist
-          # Debug: Show collected plans
-          ls -R dist
 
       - name: Upload Plans
         uses: actions/upload-artifact@v4
@@ -98,7 +97,8 @@ jobs:
 
       - name: Terragrunt Plan (All)
         run: |
-          terragrunt run --all plan --non-interactive -no-color -out=tfplan.bin
+          # Terragrunt 1.x requires '--' for passthrough flags like -out
+          terragrunt run --all plan --non-interactive -no-color -- -out=tfplan.bin
           # Convert all binary plans to JSON for the audit gates
           find . -name "tfplan.bin" -print0 | xargs -0 -I {} sh -c 'terragrunt show -json "{}" > "$(dirname "{}")/tfplan.json"'
         working-directory: infrastructure-live/prod
@@ -143,7 +143,6 @@ jobs:
       - name: Run Checkov Security Gate
         run: |
           echo "Running Checkov Plan Audit..."
-          # Scan each JSON plan individually for clarity
           find plans -name "tfplan.json" -exec checkov -f {} --config-file .checkov.yaml \;
 
   # ─────────────────────────────────────────────────────────────
@@ -165,7 +164,6 @@ jobs:
 
       - name: Generate Cost Estimate
         run: |
-          # Infracost supports multi-project discovery natively
           infracost breakdown --path . \
                              --format json \
                              --out-file /tmp/infracost.json
@@ -181,14 +179,14 @@ jobs:
           exit 0
 
   # ─────────────────────────────────────────────────────────────
-  # Phase 5: Deployment (Mandatory Gated Promotion)
+  # Phase 5: Deployment (Compliance-First Promotion)
   # ─────────────────────────────────────────────────────────────
   apply-dev:
     name: '🚀 Apply: Dev'
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    # Apply MUST have passed Governance and FinOps during the PR phase
-    # In 'push' mode, these jobs won't run, so we only need 'plan-dev'
-    needs: [plan-dev] 
+    # MANDATORY GATING: Deployments MUST have passed Governance and FinOps in the PR phase
+    # In push mode, we depend on the plan which is the root of the push chain
+    needs: [plan-dev, governance, finops] 
     runs-on: ubuntu-latest
     environment: dev
     steps:
@@ -208,7 +206,8 @@ jobs:
   apply-prod:
     name: '🚀 Apply: Prod'
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [apply-dev, plan-prod]
+    # Total compliance chain from dev to prod
+    needs: [apply-dev, plan-prod, governance, finops]
     runs-on: ubuntu-latest
     environment: prod
     steps:
