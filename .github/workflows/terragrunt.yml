@@ -66,7 +66,8 @@ jobs:
           # Terragrunt 1.x requires '--' for passthrough flags like -out
           terragrunt run --all plan --non-interactive -no-color -- -out=tfplan.bin
           # Convert all binary plans to JSON - MUST CD into module dir first
-          find . -name "tfplan.bin" -print0 | xargs -0 -I {} sh -c 'cd $(dirname "{}") && terragrunt show -json tfplan.bin > tfplan.json'
+          # We prune .terragrunt-cache to avoid processing internal cache files
+          find . -name ".terragrunt-cache" -prune -o -name "tfplan.bin" -print0 | xargs -0 -I {} sh -c 'cd $(dirname "{}") && terragrunt show -json tfplan.bin > tfplan.json'
         working-directory: infrastructure-live/dev
 
       - name: Bundle Artifacts
@@ -100,7 +101,8 @@ jobs:
           # Terragrunt 1.x requires '--' for passthrough flags like -out
           terragrunt run --all plan --non-interactive -no-color -- -out=tfplan.bin
           # Convert all binary plans to JSON - MUST CD into module dir first
-          find . -name "tfplan.bin" -print0 | xargs -0 -I {} sh -c 'cd $(dirname "{}") && terragrunt show -json tfplan.bin > tfplan.json'
+          # We prune .terragrunt-cache to avoid processing internal cache files
+          find . -name ".terragrunt-cache" -prune -o -name "tfplan.bin" -print0 | xargs -0 -I {} sh -c 'cd $(dirname "{}") && terragrunt show -json tfplan.bin > tfplan.json'
         working-directory: infrastructure-live/prod
 
       - name: Bundle Artifacts
