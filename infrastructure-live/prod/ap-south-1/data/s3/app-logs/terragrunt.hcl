@@ -12,6 +12,8 @@ inputs = {
   bucket_name = "tg-learning-bucket-prod-app-logs-7788"
   
   tags = {
-    Project = "App Logs"
+    Project     = "App Logs"
+    Service     = "logging"
+    Environment = "prod"
   }
 }
