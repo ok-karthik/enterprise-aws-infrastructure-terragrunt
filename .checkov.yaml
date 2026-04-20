@@ -22,6 +22,10 @@ skip-check:
   - CKV2_AWS_5  # SG attachment (false positive in modules)
   - CKV_TF_1    # Git commit hash (false positive for Registry modules)
   - CKV_GHA_7   # Skip 'workflow_dispatch inputs' check (Manual teardown needs inputs)
+  - CKV_AWS_37  # EKS Control Plane Logging (Costly to enable in Dev)
+  - CKV_AWS_58  # EKS Secrets Encryption (Costly/Complex for Dev)
+  - CKV_AWS_338 # CloudWatch 1-year retention (Defaults to infinite/0)
+  - CKV2_AWS_12 # Default VPC Security Group restrictions (Standard noise in modules)
 
 # Enable deep scanning of external modules from Terraform Registry
 download-external-modules: true
