@@ -13,14 +13,12 @@ permissions:
   security-events: write
 
 env:
-  # Force all actions to use Node 24 to avoid deprecation warnings
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
-  # Global Region for easy reference
   AWS_REGION: ${{ vars.AWS_REGION }}
 
 jobs:
   # ─────────────────────────────────────────────────────────────
-  # Gate 1: Static Analysis (Pre-Plan Quality)
+  # Gate 1: Static Analysis
   # ─────────────────────────────────────────────────────────────
   static-analysis:
     name: '🔍 Static Analysis'
@@ -47,7 +45,7 @@ jobs:
           soft_fail: false
 
   # ─────────────────────────────────────────────────────────────
-  # Gate 2: Multi-Environment Planning (Single Stream)
+  # Gate 2: Multi-Environment Planning
   # ─────────────────────────────────────────────────────────────
   plan-dev:
     name: '📝 Plan: Dev'
@@ -64,8 +62,25 @@ jobs:
           aws_role_arn: ${{ vars.AWS_ROLE_ARN }}
 
       - name: Terragrunt Plan (All)
-        run: terragrunt run --all plan --non-interactive -no-color
+        run: |
+          terragrunt run --all plan --non-interactive -no-color -out=tfplan.bin
+          # Convert all binary plans to JSON for the audit gates
+          find . -name "tfplan.bin" -print0 | xargs -0 -I {} sh -c 'terragrunt show -json "{}" > "$(dirname "{}")/tfplan.json"'
         working-directory: infrastructure-live/dev
+
+      - name: Bundle Artifacts
+        run: |
+          mkdir -p dist
+          find infrastructure-live/dev -name "tfplan.json" | cpio -pdm dist
+          # Debug: Show collected plans
+          ls -R dist
+
+      - name: Upload Plans
+        uses: actions/upload-artifact@v4
+        with:
+          name: plans-dev
+          path: dist/
+          retention-days: 1
 
   plan-prod:
     name: '📝 Plan: Prod'
@@ -82,14 +97,60 @@ jobs:
           aws_role_arn: ${{ vars.AWS_ROLE_ARN }}
 
       - name: Terragrunt Plan (All)
-        run: terragrunt run --all plan --non-interactive -no-color
+        run: |
+          terragrunt run --all plan --non-interactive -no-color -out=tfplan.bin
+          # Convert all binary plans to JSON for the audit gates
+          find . -name "tfplan.bin" -print0 | xargs -0 -I {} sh -c 'terragrunt show -json "{}" > "$(dirname "{}")/tfplan.json"'
         working-directory: infrastructure-live/prod
 
+      - name: Bundle Artifacts
+        run: |
+          mkdir -p dist
+          find infrastructure-live/prod -name "tfplan.json" | cpio -pdm dist
+
+      - name: Upload Plans
+        uses: actions/upload-artifact@v4
+        with:
+          name: plans-prod
+          path: dist/
+          retention-days: 1
+
   # ─────────────────────────────────────────────────────────────
-  # Gate 3: FinOps & Governance
+  # Gate 3: Audit (Parallel Policy & Security)
+  # ─────────────────────────────────────────────────────────────
+  governance:
+    name: '⚖️ Governance Audit'
+    if: github.event_name == 'pull_request'
+    needs: [plan-dev, plan-prod]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Git Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Platform
+        uses: ./.github/actions/setup-platform
+
+      - name: Download All Plans
+        uses: actions/download-artifact@v4
+        with:
+          path: plans
+
+      - name: Run OPA Policy Gate
+        run: |
+          echo "Running OPA Governance check on all plan modules..."
+          conftest test plans/**/*.json --policy policies/terraform
+
+      - name: Run Checkov Security Gate
+        run: |
+          echo "Running Checkov Plan Audit..."
+          # Scan each JSON plan individually for clarity
+          find plans -name "tfplan.json" -exec checkov -f {} --config-file .checkov.yaml \;
+
+  # ─────────────────────────────────────────────────────────────
+  # Gate 4: FinOps (Parallel Cost Audit)
   # ─────────────────────────────────────────────────────────────
   finops:
-    name: '💰 Cost & Policy'
+    name: '💰 FinOps Audit'
     if: github.event_name == 'pull_request'
     needs: [plan-dev, plan-prod]
     runs-on: ubuntu-latest
@@ -104,6 +165,7 @@ jobs:
 
       - name: Generate Cost Estimate
         run: |
+          # Infracost supports multi-project discovery natively
           infracost breakdown --path . \
                              --format json \
                              --out-file /tmp/infracost.json
@@ -119,12 +181,14 @@ jobs:
           exit 0
 
   # ─────────────────────────────────────────────────────────────
-  # Phase 4: Deployment
+  # Phase 5: Deployment (Mandatory Gated Promotion)
   # ─────────────────────────────────────────────────────────────
   apply-dev:
-    name: '🚀 Apply (Dev)'
+    name: '🚀 Apply: Dev'
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [plan-dev]
+    # Apply MUST have passed Governance and FinOps during the PR phase
+    # In 'push' mode, these jobs won't run, so we only need 'plan-dev'
+    needs: [plan-dev] 
     runs-on: ubuntu-latest
     environment: dev
     steps:
@@ -142,7 +206,7 @@ jobs:
         working-directory: infrastructure-live/dev
 
   apply-prod:
-    name: '🚀 Apply (Prod)'
+    name: '🚀 Apply: Prod'
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: [apply-dev, plan-prod]
     runs-on: ubuntu-latest
