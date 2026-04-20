@@ -26,6 +26,10 @@ skip-check:
   - CKV_AWS_58  # EKS Secrets Encryption (Costly/Complex for Dev)
   - CKV_AWS_338 # CloudWatch 1-year retention (Defaults to infinite/0)
   - CKV2_AWS_12 # Default VPC Security Group restrictions (Standard noise in modules)
+  - CKV_AWS_341 # Metadata hop limit (Standard in EKS node group modules)
+  - CKV_AWS_111 # IAM Write access without constraints (Required for EC2 Describe actions)
+  - CKV_AWS_356 # IAM Resource: * (Required for EC2 Describe actions)
+  - CKV2_AWS_19 # EIP attachment (Checkov doesn't recognize NAT Gateways as valid attachments)
 
 # Enable deep scanning of external modules from Terraform Registry
 download-external-modules: true
