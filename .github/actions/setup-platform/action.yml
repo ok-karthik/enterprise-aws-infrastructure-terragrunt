@@ -1,0 +1,110 @@
+name: 'Setup Infrastructure Platform'
+description: 'Centralized setup for Terraform, Terragrunt, TFLint, Conftest, and AWS credentials'
+
+inputs:
+  terraform_version:
+    description: 'Version of Terraform to install'
+    required: false
+    default: '1.14.8'
+  terragrunt_version:
+    description: 'Version of Terragrunt to install'
+    required: false
+    default: '1.0.1'
+  tflint_version:
+    description: 'Version of TFLint to install'
+    required: false
+    default: 'v0.54.0'
+  aws_region:
+    description: 'AWS Region for credentials'
+    required: false
+  aws_role_arn:
+    description: 'AWS Role ARN for OIDC authentication'
+    required: false
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v4
+      with:
+        terraform_version: ${{ inputs.terraform_version }}
+        terraform_wrapper: false
+
+    - name: Install Terragrunt
+      shell: bash
+      run: |
+        if ! command -v terragrunt &> /dev/null; then
+          VERSION="${{ inputs.terragrunt_version }}"
+          
+          # Map runner architecture to Gruntwork naming convention
+          ARCH=$(uname -m)
+          case $ARCH in
+            x86_64) ARCH="amd64" ;;
+            aarch64|arm64) ARCH="arm64" ;;
+          esac
+          
+          echo "Installing Terragrunt v${VERSION} for linux_${ARCH}..."
+          curl -sL "https://github.com/gruntwork-io/terragrunt/releases/download/v${VERSION}/terragrunt_linux_${ARCH}" -o terragrunt
+          chmod +x terragrunt
+          mkdir -p $HOME/.local/bin
+          mv terragrunt $HOME/.local/bin/
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+        fi
+
+    - name: Install TFLint
+      shell: bash
+      run: |
+        if ! command -v tflint &> /dev/null; then
+          # Use same ARCH from previous step if possible, but localized for safety
+          ARCH=$(uname -m)
+          case $ARCH in
+            x86_64) ARCH="amd64" ;;
+            aarch64|arm64) ARCH="arm64" ;;
+          esac
+          
+          VERSION="${{ inputs.tflint_version }}"
+          echo "Installing TFLint ${VERSION} for linux_${ARCH}..."
+          curl -sL "https://github.com/terraform-linters/tflint/releases/download/${VERSION}/tflint_linux_${ARCH}.zip" -o tflint.zip
+          unzip tflint.zip
+          chmod +x tflint
+          mkdir -p $HOME/.local/bin
+          mv tflint $HOME/.local/bin/
+          rm tflint.zip
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+        fi
+
+    - name: Install Conftest
+      shell: bash
+      run: |
+        if ! command -v conftest &> /dev/null; then
+          VERSION="0.68.2"
+          TAG="v${VERSION}"
+          
+          # Map architectures to Conftest naming
+          ARCH=$(uname -m)
+          [ "$ARCH" == "aarch64" ] && ARCH="arm64"
+          # Conftest specifically uses x86_64, not amd64
+          
+          echo "Installing Conftest ${TAG} for Linux_${ARCH}..."
+          curl -sL "https://github.com/open-policy-agent/conftest/releases/download/${TAG}/conftest_${VERSION}_Linux_${ARCH}.tar.gz" | tar xz
+          mkdir -p $HOME/.local/bin
+          mv conftest $HOME/.local/bin/
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+        fi
+
+    - name: Install tf-summarize
+      shell: bash
+      run: |
+        if ! command -v tf-summarize &> /dev/null; then
+          curl -sL https://github.com/dineshba/tf-summarize/releases/latest/download/tf-summarize_linux_amd64.tar.gz | tar xz
+          mkdir -p $HOME/.local/bin
+          mv tf-summarize $HOME/.local/bin/
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+        fi
+
+    - name: Configure AWS credentials
+      if: ${{ inputs.aws_role_arn != '' }}
+      uses: aws-actions/configure-aws-credentials@v6
+      with:
+        role-to-assume: ${{ inputs.aws_role_arn }}
+        aws-region: ${{ inputs.aws_region }}

@@ -21,9 +21,10 @@ inputs = {
   azs             = ["${local.aws_region}a", "${local.aws_region}b", "${local.aws_region}c"]
   private_subnets = ["10.0.1.0/24", "10.0.2.0/24", "10.0.3.0/24"]
   public_subnets  = ["10.0.101.0/24"]
-
-  enable_nat_gateway  = true
-  single_nat_gateway  = true
+  
+  # --- COST OPTIMIZATION: Dynamic NAT ---
+  enable_nat_gateway = local.env_vars.locals.enable_nat_gateway
+  single_nat_gateway = true
 
   tags = {
     Project     = "Infrastructure-Automation"

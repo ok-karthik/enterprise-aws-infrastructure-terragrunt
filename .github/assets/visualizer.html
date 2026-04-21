@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enterprise IaC Architecture Visualization</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=JetBrains+Mono&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0d1117;
+            --card-bg: rgba(22, 27, 34, 0.8);
+            --border-color: rgba(48, 54, 61, 0.8);
+            --accent-primary: #58a6ff;
+            --accent-secondary: #bc8cff;
+            --accent-tertiary: #d29922;
+            --accent-quaternary: #3fb950;
+            --text-primary: #c9d1d9;
+            --text-secondary: #8b949e;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 60px;
+        }
+
+        .header h1 {
+            font-size: 3rem;
+            font-weight: 800;
+            margin: 0;
+            background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .header p {
+            color: var(--text-secondary);
+            font-size: 1.2rem;
+            margin-top: 10px;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1.5fr 1fr;
+            gap: 40px;
+            width: 100%;
+            max-width: 1400px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 24px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .card h2 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-top: 0;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .card h2 span {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        /* Tree Styles */
+        .tree {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.95rem;
+            line-height: 1.8;
+            color: var(--accent-primary);
+        }
+
+        .tree ul {
+            list-style: none;
+            padding-left: 20px;
+            position: relative;
+        }
+
+        .tree li {
+            position: relative;
+            padding-left: 15px;
+        }
+
+        .tree li::before {
+            content: "├── ";
+            color: var(--text-secondary);
+            opacity: 0.5;
+        }
+
+        .tree li.last::before {
+            content: "└── ";
+        }
+
+        .folder { color: #f2cc60; }
+        .file { color: #8b949e; }
+        .hcl { color: #ff7b72; font-weight: 600; }
+
+        /* Sidebar Panels */
+        .panel {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .feature-item {
+            display: flex;
+            gap: 12px;
+            padding: 12px;
+            border-radius: 12px;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .feature-item:hover {
+            border-color: var(--accent-primary);
+            background: rgba(88, 166, 255, 0.05);
+            transform: translateX(10px);
+        }
+
+        .feature-icon {
+            font-size: 1.2rem;
+            flex-shrink: 0;
+        }
+
+        .feature-text b {
+            display: block;
+            color: var(--text-primary);
+            font-size: 0.95rem;
+            margin-bottom: 4px;
+        }
+
+        .feature-text span {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            line-height: 1.4;
+        }
+
+        .accent-env { background-color: var(--accent-secondary); }
+        .accent-mod { background-color: var(--accent-tertiary); }
+        .accent-pol { background-color: var(--accent-quaternary); }
+
+        .footer-logo {
+            margin-top: 60px;
+            opacity: 0.3;
+            font-size: 0.9rem;
+            letter-spacing: 5px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>Enterprise Architecture</h1>
+        <p>Production-Grade Terragrunt & Infrastructure Platform</p>
+    </div>
+
+    <div class="container">
+        <!-- Sidebar: Environments Layer -->
+        <div class="panel">
+            <div class="card">
+                <h2 style="color: var(--accent-secondary)"><span class="accent-env"></span> Environments Layer</h2>
+                <div class="feature-item">
+                    <div class="feature-icon">🧪</div>
+                    <div class="feature-text">
+                        <b>dev/eu-central-1</b>
+                        <span>Feature-rich development sandbox with Spot instance optimization.</span>
+                    </div>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">🛡️</div>
+                    <div class="feature-text">
+                        <b>prod/eu-central-1</b>
+                        <span>High-availability production cluster with manual review gates.</span>
+                    </div>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">🧬</div>
+                    <div class="feature-text">
+                        <b>_envcommon/</b>
+                        <span>Shared inheritance layer enforcing 100% DRY module versioning.</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2 style="color: var(--accent-quaternary)"><span class="accent-pol"></span> Governance & Policy</h2>
+                <div class="feature-item">
+                    <div class="feature-icon">🛡️</div>
+                    <div class="feature-text">
+                        <b>OIDC Keyless Auth</b>
+                        <span>Zero long-lived secrets using GitHub Actions trust-based identities.</span>
+                    </div>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">💰</div>
+                    <div class="feature-text">
+                        <b>Infracost Gates</b>
+                        <span>Automated drift detection and cost impact analysis per PR.</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Center: Tree Structure -->
+        <div class="card" style="box-shadow: 0 0 50px rgba(88, 166, 255, 0.1);">
+            <h2 style="color: var(--accent-primary); border-bottom: 1px solid var(--border-color); padding-bottom: 15px;">
+                <span style="background-color: var(--accent-primary)"></span> repo-root/
+            </h2>
+            <div class="tree">
+                <ul>
+                    <li><span class="folder">infrastructure-modules/</span> (Blueprints)
+                        <ul>
+                            <li><span class="folder">network/</span>
+                                <ul>
+                                    <li class="last"><span class="folder">vpc/</span></li>
+                                </ul>
+                            </li>
+                            <li><span class="folder">compute/</span>
+                                <ul>
+                                    <li class="last"><span class="folder">eks/</span></li>
+                                </ul>
+                            </li>
+                            <li class="last"><span class="folder">data/</span>
+                                <ul>
+                                    <li class="last"><span class="folder">s3/</span></li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </li>
+                    <li><span class="folder">infrastructure-live/</span> (Deliverables)
+                        <ul>
+                            <li><span class="folder">_envcommon/</span> <span class="hcl"># The DRY Hub</span></li>
+                            <li><span class="folder">dev/</span> (Mumbai)
+                                <ul>
+                                    <li><span class="folder">network/vpc/</span> <span class="hcl">terragrunt.hcl</span></li>
+                                    <li class="last"><span class="folder">compute/eks/</span> <span class="hcl">terragrunt.hcl</span></li>
+                                </ul>
+                            </li>
+                            <li class="last"><span class="folder">prod/</span> (Singapore)
+                                <ul>
+                                    <li class="last"><span class="folder">data/s3/</span> <span class="hcl">terragrunt.hcl</span></li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </li>
+                    <li class="last"><span class="folder">infrastructure-bootstrap/</span></li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Sidebar: Modules Layer -->
+        <div class="panel">
+            <div class="card">
+                <h2 style="color: var(--accent-tertiary)"><span class="accent-mod"></span> Module Library</h2>
+                <div class="feature-item">
+                    <div class="feature-icon">⚙️</div>
+                    <div class="feature-text">
+                        <b>Categorized Domain</b>
+                        <span>Modules grouped by network, compute, and data domains for clarity.</span>
+                    </div>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">🔌</div>
+                    <div class="feature-text">
+                        <b>Wrapped Modules</b>
+                        <span>Standardized AWS public modules with enterprise-mandatory tags.</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2 style="color: var(--accent-primary)"><span class="accent-pol"></span> CI/CD Automation</h2>
+                <div class="feature-item">
+                    <div class="feature-icon">🚀</div>
+                    <div class="feature-text">
+                        <b>Parallel Planning</b>
+                        <span>High-speed PR feedback loop with multi-env matrix planning.</span>
+                    </div>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">🏮</div>
+                    <div class="feature-text">
+                        <b>Sequential Apply</b>
+                        <span>Dependency-aware production apply using Terragrunt 'run-all'.</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer-logo">OK-PLATFORM-ENGINEERING &copy; 2026</div>
+
+</body>
+</html>

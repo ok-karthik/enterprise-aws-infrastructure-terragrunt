@@ -12,11 +12,11 @@ To initialize the enterprise platform, deploy these components in order:
 
 ### 2. OIDC Identity Trust (Global)
 - **Purpose**: Establishes OIDC trust between AWS and GitHub. This allows the CI/CD pipeline to assume IAM roles without using long-lived Access Keys.
-- **Action**: `cd infrastructure-live/dev/ap-south-2/security/github-oidc-provider && terragrunt apply`
+- **Action**: `cd infrastructure-live/dev/eu-central-1/security/github-oidc-provider && terragrunt apply`
 
 ### 3. CI/CD Permission Layer
 - **Purpose**: Creates the IAM Role assumed by the GitHub Actions runners.
-- **Action**: `cd infrastructure-live/dev/ap-south-2/security/github-oidc-role && terragrunt apply`
+- **Action**: `cd infrastructure-live/dev/eu-central-1/security/github-oidc-role && terragrunt apply`
 
 ---
 

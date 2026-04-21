@@ -29,7 +29,7 @@ provider "aws" {
 
   default_tags {
     tags = {
-      Environment = "${local.env}"
+      Environment = "${title(local.env)}"
       ManagedBy   = "Terragrunt"
       Account     = "${local.account_alias}"
     }

@@ -40,7 +40,7 @@ variable "desired_size" {
 variable "instance_types" {
   description = "List of instance types for the node group"
   type        = list(string)
-  default     = ["t3.small", "t3.medium"]
+  default     = ["t4g.small", "t4g.medium"]
 }
 
 variable "tags" {
