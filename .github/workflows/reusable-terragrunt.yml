@@ -47,11 +47,15 @@ jobs:
           # plans inside the cache directory when dealing with remote modules or specific configurations.
           find . -name "tfplan.bin" | while read -r plan_path; do
             dir_path=$(dirname "$plan_path")
-            echo "Processing plan in $dir_path"
+            # Extract the module path by removing the .terragrunt-cache suffix
+            module_path=$(echo "$dir_path" | sed 's/\/\.terragrunt-cache.*//')
+            echo "Processing plan for module: $module_path"
             
-            # We MUST 'cd' into the directory before running 'show' to ensure 
-            # Terraform has the correct local context to resolve the plan file.
+            # 1. CD into the hidden cache directory where the binary plan lives
+            # 2. Convert to JSON
+            # 3. Move the JSON out of the hidden folder to the module root
             (cd "$dir_path" && terraform show -json tfplan.bin > tfplan.json)
+            mv "$dir_path/tfplan.json" "$module_path/tfplan.json"
           done
         working-directory: ${{ inputs.working_directory }}
 
