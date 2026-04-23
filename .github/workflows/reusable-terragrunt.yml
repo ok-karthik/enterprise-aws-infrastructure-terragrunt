@@ -35,15 +35,27 @@ jobs:
       - name: Disaster Recovery (Smoke Test)
         run: ./infrastructure-live/scripts/smoke-test.sh
 
+      - name: Terragrunt Module Discovery
+        run: terragrunt run --all render-json --terragrunt-non-interactive
+        working-directory: ${{ inputs.working_directory }}
+
       - name: Terragrunt Plan
         run: |
           terragrunt run --all plan --non-interactive -no-color -- -out=tfplan.bin
-          # Convert binary plans to JSON. We use -ok to ensure we don't fail the whole loop if one conversion fails.
-          find . -name "tfplan.bin" -not -path "*/.terragrunt-cache/*" -exec sh -c 'terragrunt show -json {} > $(dirname {})/tfplan.json' \;
+          
+          echo "🔍 Converting binary plans to JSON..."
+          find . -name "tfplan.bin" -not -path "*/.terragrunt-cache/*" | while read -r plan_path; do
+            dir_path=$(dirname "$plan_path")
+            echo "Processing plan in $dir_path"
+            # CD into the directory so terraform has the correct context
+            (cd "$dir_path" && terraform show -json tfplan.bin > tfplan.json)
+          done
         working-directory: ${{ inputs.working_directory }}
 
-      - name: "Debug: List Plans"
-        run: find ${{ inputs.working_directory }} -name "tfplan.json"
+      - name: "Debug: List All Created Plans"
+        run: |
+          echo "Checking for tfplan.json files in ${{ inputs.working_directory }}:"
+          find ${{ inputs.working_directory }} -name "tfplan.json"
 
       - name: Upload Plans
         uses: actions/upload-artifact@v5
