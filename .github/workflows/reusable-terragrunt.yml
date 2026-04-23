@@ -36,7 +36,7 @@ jobs:
         run: ./infrastructure-live/scripts/smoke-test.sh
 
       - name: Terragrunt Module Discovery
-        run: terragrunt run --all render-json --terragrunt-non-interactive
+        run: terragrunt run --all render-json --non-interactive
         working-directory: ${{ inputs.working_directory }}
 
       - name: Terragrunt Plan
