@@ -32,10 +32,8 @@ jobs:
 
       - name: Check HCL Formatting
         run: |
-          terragrunt hcl format --check infrastructure-modules
-          terragrunt hcl format --check infrastructure-live
-          terragrunt hcl format --check infrastructure-bootstrap
-          terragrunt hcl format --check policies
+          # Find all .hcl files in project directories, excluding hidden folders like .external_modules
+          find infrastructure-modules infrastructure-live infrastructure-bootstrap policies -name "*.hcl" -not -path "*/.*" -print0 | xargs -0 terragrunt hcl format --check
 
       - name: Terraform Validate
         run: |

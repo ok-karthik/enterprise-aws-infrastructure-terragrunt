@@ -13,13 +13,10 @@ echo "🧪 Starting Platform Smoke Test..."
 
 # 1. HCL Syntax Check
 echo -e "\n1. Checking HCL formatting..."
-if terragrunt hcl format --check infrastructure-modules && \
-   terragrunt hcl format --check infrastructure-live && \
-   terragrunt hcl format --check infrastructure-bootstrap && \
-   terragrunt hcl format --check policies; then
+if find infrastructure-modules infrastructure-live infrastructure-bootstrap policies -name "*.hcl" -not -path "*/.*" -print0 | xargs -0 terragrunt hcl format --check; then
     echo -e "${GREEN}✅ HCL Formatting is correct.${NC}"
 else
-    echo -e "${RED}❌ HCL Formatting issues found. Fix with 'terragrunt hcl format <dir>'.${NC}"
+    echo -e "${RED}❌ HCL Formatting issues found. Fix with 'terragrunt hcl format'.${NC}"
     exit 1
 fi
 
