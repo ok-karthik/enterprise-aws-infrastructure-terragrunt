@@ -31,24 +31,10 @@ module "eks" {
       max_size     = var.max_size
       desired_size = var.desired_size
 
-      # Force custom launch template to ensure GP3 overrides defaults
-      use_custom_launch_template = true
-      disk_size                  = null
-
-      # --- FINOPS: Explicit GP3 Modernization ---
-      # We override the root block device to ensure we don't fall back to gp2
-      block_device_mappings = {
-        xvda = {
-          device_name = "/dev/xvda"
-          ebs = {
-            volume_size           = 20
-            volume_type           = "gp3"
-            iops                  = 3000
-            throughput            = 125
-            delete_on_termination = true
-          }
-        }
-      }
+      # Simplify: Use the native disk_size attribute which the module 
+      # handles correctly for managed node groups.
+      use_custom_launch_template = false
+      disk_size                  = 20
     }
   }
 
