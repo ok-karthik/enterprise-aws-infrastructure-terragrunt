@@ -42,7 +42,7 @@ jobs:
           find . -name "tfplan.bin" -not -path "*/.terragrunt-cache/*" -exec sh -c 'terragrunt show -json {} > $(dirname {})/tfplan.json' \;
         working-directory: ${{ inputs.working_directory }}
 
-      - name: Debug: List Plans
+      - name: "Debug: List Plans"
         run: find ${{ inputs.working_directory }} -name "tfplan.json"
 
       - name: Upload Plans
