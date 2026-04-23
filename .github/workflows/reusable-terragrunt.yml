@@ -127,6 +127,7 @@ jobs:
       - name: Generate Cost Estimate
         run: |
           infracost breakdown --path . \
+                             --terraform-parse-hcl \
                              --format json \
                              --out-file /tmp/infracost.json
         working-directory: ${{ inputs.working_directory }}
@@ -139,4 +140,5 @@ jobs:
                                    --github-token ${{ github.token }} \
                                    --pull-request ${{ github.event.pull_request.number }} \
                                    --behavior update \
-                                   --tag ${{ inputs.environment }}
+                                   --tag ${{ inputs.environment }} \
+                                   --show-skipped
