@@ -13,6 +13,11 @@ on:
       INFRACOST_API_KEY:
         required: false
 
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write # Required for Infracost PR comments
+
 jobs:
   plan:
     name: "📝 Plan: ${{ inputs.environment }}"
