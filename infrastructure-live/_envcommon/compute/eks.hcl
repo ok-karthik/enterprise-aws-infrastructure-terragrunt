@@ -5,8 +5,8 @@ terraform {
 }
 
 locals {
-  env_vars = read_terragrunt_config(find_in_parent_folders("env.hcl"))
-  env      = local.env_vars.locals.env
+  env_vars     = read_terragrunt_config(find_in_parent_folders("env.hcl"))
+  env          = local.env_vars.locals.env
   cluster_name = local.env_vars.locals.cluster_name
 }
 
@@ -31,7 +31,7 @@ inputs = {
   min_size     = local.env_vars.locals.min_size
   max_size     = 3
   desired_size = local.env_vars.locals.desired_size
-  
+
   tags = {
     Project     = "Infrastructure-Automation"
     Environment = title(local.env)

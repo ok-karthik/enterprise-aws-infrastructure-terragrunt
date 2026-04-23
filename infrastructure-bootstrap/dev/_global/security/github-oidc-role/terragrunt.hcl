@@ -19,12 +19,12 @@ dependency "oidc_provider" {
 locals {
   account_vars = read_terragrunt_config(find_in_parent_folders("account.hcl"))
   env_vars     = read_terragrunt_config(find_in_parent_folders("env.hcl"))
-  
+
   account_name = local.account_vars.locals.account_name
   env          = local.env_vars.locals.env
-  
+
   # The GitHub repository that is allowed to assume this role
-  github_repo = "ok-karthik/enterprise-aws-platform-terragrunt" 
+  github_repo = "ok-karthik/enterprise-aws-platform-terragrunt"
 }
 
 inputs = {

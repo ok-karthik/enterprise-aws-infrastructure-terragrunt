@@ -5,8 +5,8 @@ locals {
   # 1. Load the variables from your file structure
   # WE NO LONGER RELY ON env.hcl FOR IDENTITY - WE USE THE FOLDER PATH!
   # This makes the code completely "Clonable".
-  env          = split("/", path_relative_to_include())[0]
-  
+  env = split("/", path_relative_to_include())[0]
+
   region_vars  = read_terragrunt_config(find_in_parent_folders("region.hcl"))
   account_vars = read_terragrunt_config(find_in_parent_folders("account.hcl"))
   env_vars     = read_terragrunt_config(find_in_parent_folders("env.hcl"))

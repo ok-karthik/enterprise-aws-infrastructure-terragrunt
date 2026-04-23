@@ -11,7 +11,7 @@ locals {
 
 inputs = {
   bucket_name = "tg-learning-bucket-${local.env}-${get_aws_account_id()}" # Using account ID for uniqueness
-  
+
   tags = {
     Environment = title(local.env)
     Service     = "data-s3"

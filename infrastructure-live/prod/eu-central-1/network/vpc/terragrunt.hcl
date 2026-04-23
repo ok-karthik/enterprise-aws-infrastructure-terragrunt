@@ -10,5 +10,5 @@ include "envcommon" {
 # Production VPC might use a different CIDR range to avoid overlapping with Dev
 inputs = {
   cidr = "10.1.0.0/16"
-  
+
 }
