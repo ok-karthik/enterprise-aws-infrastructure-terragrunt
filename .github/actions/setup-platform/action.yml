@@ -123,12 +123,15 @@ runs:
       with:
         role-to-assume: ${{ inputs.aws_role_arn }}
         aws-region: ${{ inputs.aws_region }}
-        mask-aws-account-id: true
 
     - name: Verify AWS Identity (Idempotency Check)
       if: ${{ inputs.aws_role_arn != '' }}
       shell: bash
       run: |
         echo "🔐 Verifying AWS session..."
-        # Added 10s timeout to prevent hangs in CLI operations
-        timeout 10 aws sts get-caller-identity --query "Arn" --output text || { echo "❌ Failed to verify AWS identity (timed out or unauthorized)"; exit 1; }
+        # Added 10s timeout to prevent hangs. Failure here means OIDC was rejected.
+        timeout 10 aws sts get-caller-identity --query "Arn" --output text || { 
+          echo "❌ ERROR: Failed to verify AWS identity."
+          echo "👉 Check if the IAM Role trust policy allows OIDC from this repo/environment."
+          exit 1 
+        }
