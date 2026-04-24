@@ -107,26 +107,26 @@ jobs:
           name: "plans-${{ inputs.environment }}"
           path: plans
 
-      - name: "Diagnostic: Find gp2 in Plans"
-        run: |
-          echo "🔍 Searching for 'gp2' in all plan files..."
-          find plans -name "tfplan.json" -exec grep -H "gp2" {} + || echo "No gp2 found in plans"
-
       - name: "Generate FinOps Summary"
         run: |
-          # 1. Cost Breakdown (CLI only, avoiding Cloud Governance failures)
+          # 1. Cost Breakdown (CLI only)
           find plans -name "tfplan.json" | while read -r plan; do
             unique_name=$(echo "$plan" | tr '/' '-')
             infracost breakdown --path "$plan" --format json --out-file "cost-${unique_name}.json"
           done
           infracost output --path "cost-*.json" --format table --out-file /tmp/infracost-table.txt
-          infracost output --path "cost-*.json" --format json --out-file /tmp/infracost.json
 
           # 2. Change Summary (tf-summarize)
           echo "## 📊 Infrastructure Change Summary" > /tmp/pr-comment.md
+          echo "> 💡 This report summarizes resource changes and estimated cost impact." >> /tmp/pr-comment.md
+          
           find plans -name "tfplan.json" | while read -r plan; do
-            echo "### Module: $(dirname $plan)" >> /tmp/pr-comment.md
-            tf-summarize -json "$plan" >> /tmp/pr-comment.md
+            module_name=$(dirname $plan | sed 's|plans/||')
+            echo -e "\n<details><summary><b>📂 Module: ${module_name}</b></summary>\n" >> /tmp/pr-comment.md
+            echo "\`\`\`" >> /tmp/pr-comment.md
+            tf-summarize "$plan" >> /tmp/pr-comment.md
+            echo "\`\`\`" >> /tmp/pr-comment.md
+            echo -e "\n</details>" >> /tmp/pr-comment.md
           done
 
           # 3. Append Cost Table
