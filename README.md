@@ -7,47 +7,6 @@
 
 A production-grade, multi-environment AWS platform architecture designed for scalability, security governance, and FinOps efficiency. This project demonstrates **Staff Engineer level patterns** in Infrastructure-as-Code (IaC) management, focusing on modularity, policy-driven security, and automated delivery.
 
-## 🧠 Development Approach
-Selective AI assistance was used for accelerating documentation and validating CI/CD patterns. All architectural decisions, structure, and tradeoffs were designed and reviewed independently.
-
----
-
-```mermaid
-graph TD
-    subgraph Environments ["🌍 Environments Layer"]
-        direction LR
-        DEV["🟢 dev/eu-central-1<br/>Spot Optimized Sandbox"]
-        PROD["🔴 prod/eu-central-1<br/>High-Availability Cluster"]
-        COMMON["🟣 _envcommon/<br/>100% DRY Shared Logic"]
-    end
-
-    subgraph RepoRoot ["📂 Repository Root (repo-root/)"]
-        direction TB
-        MOD["🏗️ infrastructure-modules/<br/>(Blueprints)"]
-        LIVE["🚀 infrastructure-live/<br/>(Deliverables)"]
-        BOOT["🛠️ infrastructure-bootstrap/"]
-        
-        LIVE --- L_TREE["(See Structure Below)"]
-    end
-
-    subgraph Governance ["⚖️ Governance & Automation"]
-        direction LR
-        OIDC["🛡️ OIDC Keyless Auth<br/>Zero-Secret Security"]
-        COST["💰 Infracost Gates<br/>Cost Visibility"]
-        CICD["🚀 Parallel CI/CD<br/>High-Speed Feedback"]
-    end
-
-    Environments --- RepoRoot
-    RepoRoot --- Governance
-
-    style DEV fill:#1a1a1a,stroke:#2ea043,stroke-width:2px
-    style PROD fill:#1a1a1a,stroke:#f85149,stroke-width:2px
-    style COMMON fill:#1a1a1a,stroke:#a371f7,stroke-width:2px
-    style MOD fill:#0d1117,stroke:#58a6ff,stroke-width:2px
-    style LIVE fill:#0d1117,stroke:#58a6ff,stroke-width:2px
-    style BOOT fill:#0d1117,stroke:#58a6ff,stroke-width:2px
-```
-
 ---
 
 ## 🏛️ Project Architecture
@@ -212,6 +171,10 @@ Before you begin, ensure you have the following tools installed:
 1.  **Bootstrap**: See [infrastructure-bootstrap/README.md](infrastructure-bootstrap/README.md) for initial Day-0 setup.
 2.  **Development**: Merge your infrastructure changes to a feature branch. Review the `Consolidated Report` in the PR.
 3.  **Production**: Merge to `main`. The pipeline will pause for your manual approval before applying changes to the `prod` environment.
+
+## 🧠 Development Approach
+
+Selective AI assistance was used for accelerating documentation and validating CI/CD patterns. All architectural decisions, directory structure, and engineering tradeoffs were designed and reviewed independently to ensure enterprise-grade stability.
 
 ---
 
