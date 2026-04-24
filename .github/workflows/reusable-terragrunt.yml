@@ -93,6 +93,9 @@ jobs:
       - name: "Git Checkout"
         uses: actions/checkout@v5
 
+      - name: "Setup Platform"
+        uses: ./.github/actions/setup-platform
+
       - name: "Setup Infracost"
         uses: infracost/actions/setup@v4
         with:
