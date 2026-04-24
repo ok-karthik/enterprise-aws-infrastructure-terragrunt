@@ -104,6 +104,11 @@ jobs:
           name: "plans-${{ inputs.environment }}"
           path: plans
 
+      - name: "Diagnostic: Find gp2 in Plans"
+        run: |
+          echo "🔍 Searching for 'gp2' in all plan files..."
+          find plans -name "tfplan.json" -exec grep -H "gp2" {} + || echo "No gp2 found in plans"
+
       - name: "Generate Cost Estimate"
         run: |
           find plans -name "tfplan.json" | while read -r plan; do
@@ -114,6 +119,7 @@ jobs:
 
       - name: "Post Cost Comment"
         if: github.event_name == 'pull_request'
+        continue-on-error: true
         run: |
           infracost comment github --path /tmp/infracost.json \
                                    --repo $GITHUB_REPOSITORY \
