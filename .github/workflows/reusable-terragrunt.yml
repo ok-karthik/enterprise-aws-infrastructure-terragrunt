@@ -109,22 +109,52 @@ jobs:
           echo "🔍 Searching for 'gp2' in all plan files..."
           find plans -name "tfplan.json" -exec grep -H "gp2" {} + || echo "No gp2 found in plans"
 
-      - name: "Generate Cost Estimate"
+      - name: "Generate FinOps Summary"
         run: |
+          # 1. Cost Breakdown (CLI only, avoiding Cloud Governance failures)
           find plans -name "tfplan.json" | while read -r plan; do
             unique_name=$(echo "$plan" | tr '/' '-')
             infracost breakdown --path "$plan" --format json --out-file "cost-${unique_name}.json"
           done
+          infracost output --path "cost-*.json" --format table --out-file /tmp/infracost-table.txt
           infracost output --path "cost-*.json" --format json --out-file /tmp/infracost.json
 
-      - name: "Post Cost Comment"
+          # 2. Change Summary (tf-summarize)
+          echo "## 📊 Infrastructure Change Summary" > /tmp/pr-comment.md
+          find plans -name "tfplan.json" | while read -r plan; do
+            echo "### Module: $(dirname $plan)" >> /tmp/pr-comment.md
+            tf-summarize -json "$plan" >> /tmp/pr-comment.md
+          done
+
+          # 3. Append Cost Table
+          echo -e "\n## 💰 Cost Estimate\n\`\`\`\n$(cat /tmp/infracost-table.txt)\n\`\`\`" >> /tmp/pr-comment.md
+
+      - name: "Post PR Comment"
         if: github.event.pull_request.number != null || github.event_name == 'pull_request'
-        continue-on-error: true
-        run: |
-          infracost comment github --path /tmp/infracost.json \
-                                   --repo $GITHUB_REPOSITORY \
-                                   --github-token ${{ github.token }} \
-                                   --pull-request ${{ github.event.pull_request.number }} \
-                                   --behavior update \
-                                   --tag ${{ inputs.environment }} \
-                                   --show-skipped
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const body = fs.readFileSync('/tmp/pr-comment.md', 'utf8');
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number || ${{ github.event.pull_request.number }},
+            });
+            const botComment = comments.find(c => c.body.includes('Infrastructure Change Summary'));
+            
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: body
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number || ${{ github.event.pull_request.number }},
+                body: body
+              });
+            }
