@@ -58,9 +58,23 @@ The platform utilizes a **Modular CI/CD Orchestration** model built on GitHub Re
 > [!NOTE]
 > **Modular Design:** All tool installations and AWS logins are centralized in a **Local Composite Action**, ensuring that our CI/CD maintenance overhead is near zero.
 
-<p align="center">
-  <img src=".github/assets/pr-reporting-summary.png" width="800" alt="Infracost and Change Summary Report">
-</p>
+#### 💰 Sample PR Cost Audit
+The pipeline posts a consolidated report to the PR. Below is a high-fidelity representation of the Infracost output:
+
+```text
+Project: .../compute/eks/tfplan.json
+ Name                                             Monthly Qty  Unit         Monthly Cost
+ module.eks.aws_eks_cluster.this[0]                       730  hours              $73.00
+ module.eks.module.eks_managed_node_group["spot"]       1,460  hours              $13.43
+ module.eks.module.kms.aws_kms_key.this[0]                  1  months              $1.00
+
+ Project total                                                                    $92.19
+ OVERALL TOTAL                                                                    $92.19
+```
+
+> [!TIP]
+> **View a live example of our automated PR audits:**
+> [Live PR Review & Cost Analysis #7](https://github.com/ok-karthik/enterprise-aws-platform-terragrunt/pull/7#issuecomment-2804241908)
 
 4.  **🚀 Parallel Planning**: Simultaneous planning across all environment modules for rapid engineering feedback.
 5.  **🚦 Manual Approval Gates**: Environment-protected deployment using GitHub Environments. No code reaches `Dev` or `Prod` without explicit manual review in the Actions UI.
@@ -183,6 +197,19 @@ Contributions are welcome! Please ensure any new modules include:
 - TFLint validation
 - Checkov-compliant HCL
 - OPA-compliant tagging
+
+---
+
+---
+
+## 📸 Platform Screenshots
+
+### 🚦 Production Deployment Gate
+The platform utilizes **GitHub Environments** to enforce manual approval gates before code reaches `prod`. This ensures that even with 100% automated validation, human oversight is maintained for critical infrastructure changes.
+
+<p align="center">
+  <img src=".github/assets/github-actions-manual-approval.png" width="900" alt="GitHub Actions Manual Approval Gate">
+</p>
 
 ---
 
