@@ -78,7 +78,8 @@ runs:
         if ! command -v terragrunt &> /dev/null; then
           VERSION="${{ inputs.terragrunt_version }}"
           echo "📦 Installing Terragrunt v${VERSION}..."
-          timeout 60 curl -sfL "https://github.com/gruntwork-io/terragrunt/releases/download/v${VERSION}/terragrunt_linux_${ARCH_TG}" -o terragrunt
+          curl -sfL --retry 3 --retry-all-errors --retry-delay 5 \
+            "https://github.com/gruntwork-io/terragrunt/releases/download/v${VERSION}/terragrunt_linux_${ARCH_TG}" -o terragrunt
           chmod +x terragrunt
           mv terragrunt $HOME/.local/bin/
         fi
@@ -87,7 +88,8 @@ runs:
         if ! command -v tflint &> /dev/null; then
           VERSION="${{ inputs.tflint_version }}"
           echo "📦 Installing TFLint ${VERSION}..."
-          timeout 60 curl -sfL "https://github.com/terraform-linters/tflint/releases/download/${VERSION}/tflint_linux_${ARCH_TF}.zip" -o tflint.zip
+          curl -sfL --retry 3 --retry-all-errors --retry-delay 5 \
+            "https://github.com/terraform-linters/tflint/releases/download/${VERSION}/tflint_linux_${ARCH_TF}.zip" -o tflint.zip
           unzip -q tflint.zip
           chmod +x tflint
           mv tflint $HOME/.local/bin/
@@ -99,7 +101,7 @@ runs:
           VERSION="${{ inputs.conftest_version }}"
           echo "📦 Installing Conftest v${VERSION}..."
           URL="https://github.com/open-policy-agent/conftest/releases/download/v${VERSION}/conftest_${VERSION}_Linux_${ARCH_CT}.tar.gz"
-          curl -sfL "$URL" -o conftest.tar.gz || { echo "❌ Failed to download Conftest"; exit 1; }
+          curl -sfL --retry 3 --retry-all-errors --retry-delay 5 "$URL" -o conftest.tar.gz || { echo "❌ Failed to download Conftest"; exit 1; }
           tar -xzf conftest.tar.gz
           mv conftest $HOME/.local/bin/
           rm conftest.tar.gz
@@ -114,7 +116,7 @@ runs:
           else
             URL="https://github.com/dineshba/tf-summarize/releases/download/${VERSION}/tf-summarize_linux_${ARCH_SM}.tar.gz"
           fi
-          curl -sfL "$URL" -o tf-summarize.tar.gz || { echo "❌ Failed to download tf-summarize"; exit 1; }
+          curl -sfL --retry 3 --retry-all-errors --retry-delay 5 "$URL" -o tf-summarize.tar.gz || { echo "❌ Failed to download tf-summarize"; exit 1; }
           tar -xzf tf-summarize.tar.gz
           mv tf-summarize $HOME/.local/bin/
           rm tf-summarize.tar.gz
