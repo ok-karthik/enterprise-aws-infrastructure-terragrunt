@@ -45,12 +45,6 @@ RUN ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') && \
     tar -xzf tf-summarize.tar.gz && \
     mv tf-summarize /usr/local/bin/
 
-# 6. Install AWS CLI v2
-RUN ARCH=$(uname -m) && \
-    curl "https://awscli.amazonaws.com/awscli-exe-linux-${ARCH}.zip" -o "awscliv2.zip" && \
-    unzip awscliv2.zip && \
-    ./aws/install
-
 # --- FINAL TOOLCHAIN IMAGE ---
 FROM debian:bookworm-slim
 
@@ -64,12 +58,19 @@ RUN apt-get update && apt-get install -y \
     jq \
     ca-certificates \
     curl \
+    unzip \
+    libcrypt1 \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy tools from builder
+# Copy binaries from builder
 COPY --from=builder /usr/local/bin/ /usr/local/bin/
-COPY --from=builder /usr/local/aws-cli/ /usr/local/aws-cli/
-COPY --from=builder /usr/local/bin/aws* /usr/local/bin/
+
+# Install AWS CLI v2 directly in final stage for stability
+RUN ARCH=$(uname -m) && \
+    curl "https://awscli.amazonaws.com/awscli-exe-linux-${ARCH}.zip" -o "awscliv2.zip" && \
+    unzip awscliv2.zip && \
+    ./aws/install && \
+    rm -rf awscliv2.zip ./aws
 
 # Create a non-root user for security
 RUN useradd -ms /bin/bash platform && \
