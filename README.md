@@ -30,10 +30,10 @@ graph LR
     OPA -->|Approval| AWS[AWS Infrastructure]
     
     subgraph "AWS Ecosystem"
-    AWS --> VPC[Network: VPC]
-    AWS --> EKS[Compute: EKS]
-    AWS --> S3[Storage: S3]
-    AWS --> IAM[Identity: OIDC]
+    AWS --> VPC["Network: VPC"]
+    AWS --> EKS["Compute: EKS"]
+    AWS --> S3["Storage: S3"]
+    AWS --> IAM["Identity: OIDC"]
     end
     
     style Dev fill:#f9f,stroke:#333,stroke-width:2px
@@ -67,9 +67,9 @@ graph LR
 
 ## 🤝 Contributing
 
-1️⃣ **Fork the repo**
-2️⃣ **Create a feature branch** (`feat/your-name`)
-3️⃣ **Validate locally**: `tflint --recursive && checkov -d .`
+1️⃣ **Fork the repo**  
+2️⃣ **Create a feature branch** (`feat/your-name`)  
+3️⃣ **Validate locally**: `tflint --recursive && checkov -d .`  
 4️⃣ **Submit a PR**: The 5-stage pipeline runs automatically.
 
 ---
@@ -97,8 +97,8 @@ graph LR
     B --> C[Terragrunt generates Plan]
     C --> D[OPA/Conftest Policy Gate]
     D --> E[Apply to dev environment]
-    E --> F[Observability (Prometheus/Grafana)]
-    F --> G[Manual Approval → prod]
+    E --> F["Observability (Prometheus/Grafana)"]
+    F --> G["Manual Approval → prod"]
 ```
 
 > **Note:** All architecture and flow diagrams use a flat, monochrome style for visual consistency.
