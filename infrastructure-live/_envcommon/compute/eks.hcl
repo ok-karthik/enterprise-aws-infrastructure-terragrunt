@@ -10,6 +10,7 @@ locals {
   cluster_name = local.env_vars.locals.cluster_name
 }
 
+
 dependency "vpc" {
   config_path = "${get_terragrunt_dir()}/../../network/vpc" # Resolves relative to the live module directory
 

@@ -20,87 +20,107 @@ inputs:
   aws_role_arn:
     description: 'AWS Role ARN for OIDC authentication'
     required: false
+  conftest_version:
+    description: 'Version of Conftest to install'
+    required: false
+    default: '0.68.2'
+  tf_summarize_version:
+    description: 'Version of tf-summarize to install'
+    required: false
+    default: 'latest'
 
 runs:
   using: 'composite'
   steps:
+    - name: Pre-validate Inputs
+      shell: bash
+      run: |
+        echo "🔍 Validating inputs..."
+        if [[ -n "${{ inputs.aws_role_arn }}" ]] && [[ -z "${{ inputs.aws_region }}" ]]; then
+          echo "❌ ERROR: aws_region is required when aws_role_arn is provided."
+          exit 1
+        fi
+        
+        # Verify runner OS
+        if [[ "$RUNNER_OS" != "Linux" ]]; then
+          echo "❌ ERROR: This action currently only supports Linux runners."
+          exit 1
+        fi
+
+        # Verify AWS CLI presence
+        if ! command -v aws &> /dev/null; then
+          echo "❌ ERROR: AWS CLI is not installed. Please ensure it is available in the runner environment."
+          exit 1
+        fi
+
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v4
       with:
         terraform_version: ${{ inputs.terraform_version }}
         terraform_wrapper: false
 
-    - name: Install Terragrunt
+    - name: Install Tools (Terragrunt, TFLint, Conftest, tf-summarize)
       shell: bash
       run: |
+        set -e
+        mkdir -p $HOME/.local/bin
+        export PATH="$HOME/.local/bin:$PATH"
+        
+        # Architecture detection
+        ARCH=$(uname -m)
+        case $ARCH in
+          x86_64) ARCH_TG="amd64"; ARCH_TF="amd64"; ARCH_CT="x86_64"; ARCH_SM="amd64" ;;
+          aarch64|arm64) ARCH_TG="arm64"; ARCH_TF="arm64"; ARCH_CT="arm64"; ARCH_SM="arm64" ;;
+          *) echo "❌ Unsupported architecture: $ARCH"; exit 1 ;;
+        esac
+
+        # 1. Terragrunt
         if ! command -v terragrunt &> /dev/null; then
           VERSION="${{ inputs.terragrunt_version }}"
-          
-          # Map runner architecture to Gruntwork naming convention
-          ARCH=$(uname -m)
-          case $ARCH in
-            x86_64) ARCH="amd64" ;;
-            aarch64|arm64) ARCH="arm64" ;;
-          esac
-          
-          echo "Installing Terragrunt v${VERSION} for linux_${ARCH}..."
-          curl -sL "https://github.com/gruntwork-io/terragrunt/releases/download/v${VERSION}/terragrunt_linux_${ARCH}" -o terragrunt
+          echo "📦 Installing Terragrunt v${VERSION}..."
+          timeout 60 curl -sfL "https://github.com/gruntwork-io/terragrunt/releases/download/v${VERSION}/terragrunt_linux_${ARCH_TG}" -o terragrunt
           chmod +x terragrunt
-          mkdir -p $HOME/.local/bin
           mv terragrunt $HOME/.local/bin/
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
         fi
 
-    - name: Install TFLint
-      shell: bash
-      run: |
+        # 2. TFLint
         if ! command -v tflint &> /dev/null; then
-          # Use same ARCH from previous step if possible, but localized for safety
-          ARCH=$(uname -m)
-          case $ARCH in
-            x86_64) ARCH="amd64" ;;
-            aarch64|arm64) ARCH="arm64" ;;
-          esac
-          
           VERSION="${{ inputs.tflint_version }}"
-          echo "Installing TFLint ${VERSION} for linux_${ARCH}..."
-          curl -sL "https://github.com/terraform-linters/tflint/releases/download/${VERSION}/tflint_linux_${ARCH}.zip" -o tflint.zip
-          unzip tflint.zip
+          echo "📦 Installing TFLint ${VERSION}..."
+          timeout 60 curl -sfL "https://github.com/terraform-linters/tflint/releases/download/${VERSION}/tflint_linux_${ARCH_TF}.zip" -o tflint.zip
+          unzip -q tflint.zip
           chmod +x tflint
-          mkdir -p $HOME/.local/bin
           mv tflint $HOME/.local/bin/
           rm tflint.zip
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
         fi
 
-    - name: Install Conftest
-      shell: bash
-      run: |
+        # 3. Conftest
         if ! command -v conftest &> /dev/null; then
-          VERSION="0.68.2"
-          TAG="v${VERSION}"
-          
-          # Map architectures to Conftest naming
-          ARCH=$(uname -m)
-          [ "$ARCH" == "aarch64" ] && ARCH="arm64"
-          # Conftest specifically uses x86_64, not amd64
-          
-          echo "Installing Conftest ${TAG} for Linux_${ARCH}..."
-          curl -sL "https://github.com/open-policy-agent/conftest/releases/download/${TAG}/conftest_${VERSION}_Linux_${ARCH}.tar.gz" | tar xz
-          mkdir -p $HOME/.local/bin
+          VERSION="${{ inputs.conftest_version }}"
+          echo "📦 Installing Conftest v${VERSION}..."
+          URL="https://github.com/open-policy-agent/conftest/releases/download/v${VERSION}/conftest_${VERSION}_Linux_${ARCH_CT}.tar.gz"
+          curl -sfL "$URL" -o conftest.tar.gz || { echo "❌ Failed to download Conftest"; exit 1; }
+          tar -xzf conftest.tar.gz
           mv conftest $HOME/.local/bin/
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          rm conftest.tar.gz
         fi
 
-    - name: Install tf-summarize
-      shell: bash
-      run: |
+        # 4. tf-summarize
         if ! command -v tf-summarize &> /dev/null; then
-          curl -sL https://github.com/dineshba/tf-summarize/releases/latest/download/tf-summarize_linux_amd64.tar.gz | tar xz
-          mkdir -p $HOME/.local/bin
+          VERSION="${{ inputs.tf_summarize_version }}"
+          echo "📦 Installing tf-summarize (${VERSION})..."
+          if [ "$VERSION" == "latest" ]; then
+            URL="https://github.com/dineshba/tf-summarize/releases/latest/download/tf-summarize_linux_${ARCH_SM}.tar.gz"
+          else
+            URL="https://github.com/dineshba/tf-summarize/releases/download/${VERSION}/tf-summarize_linux_${ARCH_SM}.tar.gz"
+          fi
+          curl -sfL "$URL" -o tf-summarize.tar.gz || { echo "❌ Failed to download tf-summarize"; exit 1; }
+          tar -xzf tf-summarize.tar.gz
           mv tf-summarize $HOME/.local/bin/
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          rm tf-summarize.tar.gz
         fi
+
+        echo "$HOME/.local/bin" >> $GITHUB_PATH
 
     - name: Configure AWS credentials
       if: ${{ inputs.aws_role_arn != '' }}
@@ -108,3 +128,15 @@ runs:
       with:
         role-to-assume: ${{ inputs.aws_role_arn }}
         aws-region: ${{ inputs.aws_region }}
+
+    - name: Verify AWS Identity (Idempotency Check)
+      if: ${{ inputs.aws_role_arn != '' }}
+      shell: bash
+      run: |
+        echo "🔐 Verifying AWS session..."
+        # Added 10s timeout to prevent hangs. Failure here means OIDC was rejected.
+        timeout 10 aws sts get-caller-identity --query "Arn" --output text || { 
+          echo "❌ ERROR: Failed to verify AWS identity."
+          echo "👉 Check if the IAM Role trust policy allows OIDC from this repo/environment."
+          exit 1 
+        }

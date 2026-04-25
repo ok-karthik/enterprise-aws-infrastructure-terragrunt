@@ -1,0 +1,42 @@
+name: 'Static Analysis'
+description: 'Runs HCL formatting, validation, TFLint, and Checkov scans'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Check HCL Formatting
+      shell: bash
+      run: |
+        echo "🎨 Checking HCL formatting..."
+        terraform fmt -check -recursive infrastructure-modules
+        terraform fmt -check -recursive infrastructure-live
+        terraform fmt -check -recursive infrastructure-bootstrap
+        terraform fmt -check -recursive policies
+
+    - name: Terraform Validate
+      shell: bash
+      run: |
+        echo "✅ Validating Terraform modules..."
+        find infrastructure-modules -maxdepth 2 -name "main.tf" -exec sh -c 'cd $(dirname {}) && terraform init -backend=false && terraform validate' \;
+
+    - name: Run TFLint
+      shell: bash
+      run: |
+        echo "🔍 Running TFLint..."
+        tflint --init
+        tflint --chdir=infrastructure-modules --recursive --format=compact
+        tflint --chdir=infrastructure-live --recursive --format=compact
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+
+    - name: Run Checkov (Static HCL)
+      uses: bridgecrewio/checkov-action@v12
+      with:
+        config_file: .checkov.yaml
+        soft_fail: false
+
+    - name: License Compliance Check
+      shell: bash
+      run: |
+        echo "📜 Checking license compliance..."
+        ./infrastructure-live/scripts/check-licenses.sh

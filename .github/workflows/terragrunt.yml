@@ -6,6 +6,12 @@ on:
     branches:
       - main
   pull_request:
+  workflow_dispatch:
+    inputs:
+      target_region:
+        description: 'Target AWS Region (Overrides vars.AWS_REGION if provided)'
+        required: false
+        type: string
 
 permissions:
   id-token: write
@@ -15,7 +21,7 @@ permissions:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
-  AWS_REGION: ${{ vars.AWS_REGION }}
+  AWS_REGION: ${{ github.event.inputs.target_region || vars.AWS_REGION }}
 
 jobs:
   # ─────────────────────────────────────────────────────────────
@@ -24,6 +30,7 @@ jobs:
   static-analysis:
     name: '🔍 Static Analysis (TFLint/Checkov)'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: "Git Checkout"
         uses: actions/checkout@v5
@@ -31,33 +38,8 @@ jobs:
       - name: "Setup Platform"
         uses: ./.github/actions/setup-platform
 
-      - name: "Check HCL Formatting"
-        run: |
-          terraform fmt -check -recursive infrastructure-modules
-          terraform fmt -check -recursive infrastructure-live
-          terraform fmt -check -recursive infrastructure-bootstrap
-          terraform fmt -check -recursive policies
-
-      - name: "Terraform Validate"
-        run: |
-          find infrastructure-modules -maxdepth 2 -name "main.tf" -exec sh -c 'cd $(dirname {}) && terraform init -backend=false && terraform validate' \;
-
-      - name: "Run TFLint"
-        run: |
-          tflint --init
-          tflint --chdir=infrastructure-modules --recursive --format=compact
-          tflint --chdir=infrastructure-live --recursive --format=compact
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-
-      - name: "Run Checkov (Static HCL)"
-        uses: bridgecrewio/checkov-action@v12
-        with:
-          config_file: .checkov.yaml
-          soft_fail: false
-
-      - name: "License Compliance Check"
-        run: ./infrastructure-live/scripts/check-licenses.sh
+      - name: "Static Analysis"
+        uses: ./.github/actions/static-analysis
 
   # ─────────────────────────────────────────────────────────────
   # Gate 2-4: Multi-Environment Orchestration (Reusable)
@@ -69,6 +51,7 @@ jobs:
     with:
       environment: 'dev'
       working_directory: 'infrastructure-live/dev'
+      aws_role_arn: ${{ vars.AWS_DEV_ROLE_ARN }}
     secrets:
       INFRACOST_API_KEY: ${{ secrets.INFRACOST_API_KEY }}
 
@@ -79,6 +62,7 @@ jobs:
     with:
       environment: 'prod'
       working_directory: 'infrastructure-live/prod'
+      aws_role_arn: ${{ vars.AWS_PROD_ROLE_ARN }}
     secrets:
       INFRACOST_API_KEY: ${{ secrets.INFRACOST_API_KEY }}
 
@@ -90,6 +74,7 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: [dev-stack]
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     environment: dev
     steps:
       - name: "Git Checkout"
@@ -99,7 +84,7 @@ jobs:
         uses: ./.github/actions/setup-platform
         with:
           aws_region: ${{ env.AWS_REGION }}
-          aws_role_arn: ${{ vars.AWS_ROLE_ARN }}
+          aws_role_arn: ${{ vars.AWS_DEV_ROLE_ARN }}
 
       - name: "Terragrunt Apply"
         run: terragrunt run --all apply --non-interactive -auto-approve
@@ -110,6 +95,7 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: [apply-dev, prod-stack]
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     environment: prod
     steps:
       - name: "Git Checkout"
@@ -119,7 +105,7 @@ jobs:
         uses: ./.github/actions/setup-platform
         with:
           aws_region: ${{ env.AWS_REGION }}
-          aws_role_arn: ${{ vars.AWS_ROLE_ARN }}
+          aws_role_arn: ${{ vars.AWS_PROD_ROLE_ARN }}
 
       - name: "Terragrunt Apply"
         run: terragrunt run --all apply --non-interactive -auto-approve

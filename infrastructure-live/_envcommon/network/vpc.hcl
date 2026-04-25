@@ -13,6 +13,7 @@ locals {
   aws_region  = local.region_vars.locals.aws_region
 }
 
+
 inputs = {
   name         = "main-vpc-${local.env}"
   cluster_name = local.cluster_name

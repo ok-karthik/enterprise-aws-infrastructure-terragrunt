@@ -9,6 +9,9 @@ on:
       working_directory:
         required: true
         type: string
+      aws_role_arn:
+        required: true
+        type: string
     secrets:
       INFRACOST_API_KEY:
         required: false
@@ -22,6 +25,7 @@ jobs:
   plan:
     name: "📝 Plan: ${{ inputs.environment }}"
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: "Git Checkout"
         uses: actions/checkout@v5
@@ -30,7 +34,7 @@ jobs:
         uses: ./.github/actions/setup-platform
         with:
           aws_region: ${{ vars.AWS_REGION }}
-          aws_role_arn: ${{ vars.AWS_ROLE_ARN }}
+          aws_role_arn: ${{ inputs.aws_role_arn }}
 
       - name: "Disaster Recovery (Smoke Test)"
         run: ./infrastructure-live/scripts/smoke-test.sh
@@ -66,6 +70,7 @@ jobs:
     name: "⚖️ Security & Governance (OPA/Checkov): ${{ inputs.environment }}"
     needs: [plan]
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: "Git Checkout"
         uses: actions/checkout@v5
@@ -89,6 +94,7 @@ jobs:
     name: "💰 Cost Analysis (Infracost): ${{ inputs.environment }}"
     needs: [plan]
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: "Git Checkout"
         uses: actions/checkout@v5

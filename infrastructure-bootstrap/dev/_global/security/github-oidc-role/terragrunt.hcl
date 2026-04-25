@@ -24,7 +24,7 @@ locals {
   env          = local.env_vars.locals.env
 
   # The GitHub repository that is allowed to assume this role
-  github_repo = "ok-karthik/enterprise-aws-platform-terragrunt"
+  github_repo = "ok-karthik/enterprise-aws-infrastructure-terragrunt"
 }
 
 inputs = {

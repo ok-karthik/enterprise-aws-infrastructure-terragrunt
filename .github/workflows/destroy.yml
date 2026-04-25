@@ -31,6 +31,7 @@ jobs:
   discover:
     name: '🔍 Discover Modules'
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
       modules: ${{ steps.set-modules.outputs.modules }}
     steps:
@@ -50,6 +51,7 @@ jobs:
     needs: [discover]
     if: github.event.inputs.confirm_destruction == 'DESTROY'
     runs-on: ubuntu-latest
+    timeout-minutes: 40
     environment: ${{ github.event.inputs.environment }}
     steps:
       - name: Git Checkout
@@ -59,7 +61,7 @@ jobs:
         uses: ./.github/actions/setup-platform
         with:
           aws_region: ${{ env.AWS_REGION }}
-          aws_role_arn: ${{ vars.AWS_ROLE_ARN }}
+          aws_role_arn: ${{ github.event.inputs.environment == 'dev' && vars.AWS_DEV_ROLE_ARN || vars.AWS_PROD_ROLE_ARN }}
 
       - name: Terragrunt Destroy (Sequential)
         run: |

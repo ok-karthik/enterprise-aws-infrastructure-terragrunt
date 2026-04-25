@@ -34,10 +34,12 @@ To ensure the integrity of the `main` branch, the following **GitHub UI settings
 3.  **Require status checks to pass before merging**: Checked.
     - **Status checks**: 
         - `🔍 Quality: Lint & Validate`
-        - `📝 Plan: Dev`
-        - `📝 Plan: Prod`
-        - `⚖️ Audit: Dev`
-        - `⚖️ Audit: Prod`
+        - `📝 Plan: dev`
+        - `📝 Plan: prod`
+        - `⚖️ Security & Governance (OPA/Checkov): dev`
+        - `⚖️ Security & Governance (OPA/Checkov): prod`
+        - `💰 Cost Analysis (Infracost): dev`
+        - `💰 Cost Analysis (Infracost): prod`
 4.  **Require conversation resolution before merging**: Checked (ensures all reviewer comments are addressed).
 5.  **Restrict deletions**: Checked.
 

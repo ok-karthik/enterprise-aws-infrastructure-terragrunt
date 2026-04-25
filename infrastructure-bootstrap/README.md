@@ -4,21 +4,55 @@ This directory contains the "Pre-CI/CD" infrastructure required to stand up the 
 
 ## 🏗️ Bootstrapping Order
 
-To initialize the enterprise platform, deploy these components in order:
+To initialize the enterprise platform, you can use the **guided automation script** or follow the manual steps below:
 
-### 1. State Hub
-- **Purpose**: Creates the S3 Bucket and DynamoDB table used for Terragrunt remote state locking.
-- **Action**: `cd infrastructure-bootstrap/state-hub && terragrunt apply`
+### ⚡ Guided Bootstrap (Recommended)
+We provide a script that automates the deployment and provides direct instructions for GitHub:
+```bash
+cd infrastructure-bootstrap
+chmod +x bootstrap.sh
+./bootstrap.sh
+```
 
-### 2. OIDC Identity Trust (Global)
+---
+
+### 📖 Manual Bootstrap Steps
+If you prefer to run things manually, deploy these components in order:
+
+### 1. OIDC Identity Trust (Global)
 - **Purpose**: Establishes OIDC trust between AWS and GitHub. This allows the CI/CD pipeline to assume IAM roles without using long-lived Access Keys.
-- **Action**: `cd infrastructure-live/dev/eu-central-1/security/github-oidc-provider && terragrunt apply`
+- **Action**: 
+  ```bash
+  cd infrastructure-bootstrap/dev/_global/security/github-oidc-provider
+  terragrunt apply
+  ```
 
-### 3. CI/CD Permission Layer
+### 2. CI/CD Permission Layer
 - **Purpose**: Creates the IAM Role assumed by the GitHub Actions runners.
-- **Action**: `cd infrastructure-live/dev/eu-central-1/security/github-oidc-role && terragrunt apply`
+- **Action**: 
+  ```bash
+  cd infrastructure-bootstrap/dev/_global/security/github-oidc-role
+  terragrunt apply
+  ```
+
+### 3. GitHub Action Variables (CRITICAL)
+Once the infrastructure is applied, you must register the Role ARNs in GitHub to enable the automated pipeline.
+
+1.  Navigate to your repository on GitHub.
+2.  Go to **Settings** -> **Actions** -> **Variables** -> **Repository**.
+3.  Add the following **Repository Variables**:
+    *   `AWS_DEV_ROLE_ARN`: The ARN of the role created in Step 2.
+    *   `AWS_PROD_ROLE_ARN`: (If applicable) The ARN for the production role.
+    *   `AWS_REGION`: Your primary deployment region (e.g., `eu-central-1`).
+
+---
+
+## 🔐 Why Repository Variables?
+We use **Repository Variables** instead of Environment Variables for the Role ARNs because:
+1.  **Automatic Planning**: It allows `terragrunt plan` to run automatically on Pull Requests without being blocked by environment approval gates.
+2.  **Scalability**: New environments can be added by simply adding a new variable (e.g., `AWS_STAGING_ROLE_ARN`) without modifying workflow YAML.
 
 ---
 
 ## 🔐 Security Note
-The OIDC trust is strictly scoped to this specific GitHub repository (`${github_repo_url}`). This follows the **Principle of Least Privilege**, ensuring that only authorized CI/CD runs can modify your production infrastructure.
+The OIDC trust is strictly scoped to this specific GitHub repository. This follows the **Principle of Least Privilege**, ensuring that only authorized CI/CD runs can modify your production infrastructure.

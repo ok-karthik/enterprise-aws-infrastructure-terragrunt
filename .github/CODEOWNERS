@@ -1,0 +1,15 @@
+# 🏛️ Repository Ownership (CODEOWNERS)
+# This file facilitates branch protection and ensures the right teams review changes.
+
+# Global owners (SRE/Platform Team)
+*       @ok-karthik
+
+# Module-specific owners
+/infrastructure-modules/   @ok-karthik
+/infrastructure-live/      @ok-karthik
+
+# Security & Compliance policies
+/policies/                 @ok-karthik
+
+# CI/CD Workflows & Actions
+/.github/                  @ok-karthik

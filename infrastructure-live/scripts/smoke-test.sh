@@ -12,7 +12,29 @@ NC='\033[0m' # No Color
 echo "🧪 Starting Platform Smoke Test..."
 
 # 1. HCL Syntax Check
-echo -e "\n1. Checking HCL formatting..."
+echo "1. Checking Platform Compliance & Standards..."
+# Verify environment names
+for env_dir in infrastructure-live/dev infrastructure-live/prod infrastructure-live/staging; do
+  if [ -d "$env_dir" ]; then
+    env_name=$(basename "$env_dir")
+    if [[ ! "$env_name" =~ ^(dev|prod|staging)$ ]]; then
+       echo "❌ ERROR: Unsupported environment folder '$env_name'."
+       exit 1
+    fi
+  fi
+done
+
+# Verify regional compliance in region.hcl files
+for region_file in $(find infrastructure-live -name "region.hcl"); do
+  region=$(grep "aws_region" "$region_file" | cut -d'"' -f2)
+  if [[ ! "$region" =~ ^(eu-|us-) ]]; then
+    echo "❌ ERROR: Region '$region' in $region_file is not supported (EU/US only)."
+    exit 1
+  fi
+done
+echo "✅ Compliance checks passed."
+
+echo -e "\n2. Checking HCL formatting..."
 if terraform fmt -check -recursive infrastructure-modules && \
    terraform fmt -check -recursive infrastructure-live && \
    terraform fmt -check -recursive infrastructure-bootstrap && \

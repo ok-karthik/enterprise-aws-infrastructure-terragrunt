@@ -20,6 +20,7 @@ locals {
   account_id = get_aws_account_id()
 }
 
+
 # Generate an AWS provider block
 generate "provider" {
   path      = "provider.tf"
