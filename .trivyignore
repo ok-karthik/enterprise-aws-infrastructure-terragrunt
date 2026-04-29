@@ -1,0 +1,7 @@
+# TRIVY IGNORE FILE
+# This file suppresses security findings that have been reviewed and accepted as "Calculated Risks."
+
+# AWS-0104: Security group rule allows unrestricted egress to any IP address.
+# Justification: EKS Nodes require outbound access to reach public container registries (ECR, DockerHub) 
+# and AWS APIs. In a future iteration, this will be hardened using VPC Endpoints and a private registry.
+AWS-0104
