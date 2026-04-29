@@ -35,6 +35,15 @@ runs:
         config_file: .checkov.yaml
         soft_fail: false
 
+    - name: Run Trivy Scan (Security)
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'config'
+        hide-progress: false
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+        severity: 'CRITICAL,HIGH'
+
     - name: License Compliance Check
       shell: bash
       run: |
