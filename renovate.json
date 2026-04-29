@@ -22,6 +22,22 @@
         "default: '(?<currentValue>.*)'\\s+# renovate: datasource=(?<datasource>.*) depName=(?<depName>.*)( versioning=(?<versioning>.*))?"
       ],
       "versioningTemplate": "{{#if versioning}}{{versioning}}{{else}}semver{{/if}}"
+    },
+    {
+      "description": "Track tool versions in Dockerfile ARGs",
+      "fileMatch": ["(^|/)Dockerfile$"],
+      "matchStrings": [
+        "ARG\\s+(?<depNameUppercase>.*?)_VERSION=(?<currentValue>.*)\\s+# renovate: datasource=(?<datasource>.*) depName=(?<depName>.*)(?: versioning=(?<versioning>.*))?"
+      ],
+      "versioningTemplate": "{{#if versioning}}{{versioning}}{{else}}semver{{/if}}"
+    },
+    {
+      "description": "Track Terragrunt registry modules (tfr:// protocol)",
+      "fileMatch": ["(^|/)terragrunt\\.hcl$"],
+      "matchStrings": [
+        "source\\s*=\\s*\"tfr://registry\\.terraform\\.io/(?<depName>.*?)(?://.*?)?\\?version=(?<currentValue>.*?)\""
+      ],
+      "datasourceTemplate": "terraform-module"
     }
   ],
   "packageRules": [
@@ -31,7 +47,7 @@
       "groupName": "Infrastructure Dependencies (Non-Major)"
     },
     {
-      "matchSourceUrlPrefixes": ["https://github.com/terraform-aws-modules/"],
+      "matchPackageNames": ["terraform-aws-modules/**"],
       "groupName": "AWS Official Modules"
     },
     {
@@ -44,3 +60,4 @@
   "prConcurrentLimit": 5,
   "prHourlyLimit": 0
 }
+
