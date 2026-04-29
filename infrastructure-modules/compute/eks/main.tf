@@ -61,5 +61,5 @@ module "eks" {
 
   # --- SECURITY: Control Plane Logging ---
   # Resolves security scan findings by enabling audit and diagnostic logs.
-  cluster_enabled_log_types = ["api", "audit", "authenticator", "controllerManager", "scheduler"]
+  enabled_log_types = ["api", "audit", "authenticator", "controllerManager", "scheduler"]
 }
