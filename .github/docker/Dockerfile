@@ -69,7 +69,12 @@ RUN apt-get update && apt-get install -y \
     curl \
     unzip \
     libcrypt1 \
+    python3 \
+    python3-pip \
     && rm -rf /var/lib/apt/lists/*
+
+# Install Checkov
+RUN pip3 install --no-cache-dir checkov --break-system-packages
 
 # Copy binaries from builder
 COPY --from=builder /usr/local/bin/ /usr/local/bin/
