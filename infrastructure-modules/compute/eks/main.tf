@@ -60,7 +60,10 @@ module "eks" {
     var.tags
   )
 
-  # --- SECURITY: Control Plane Logging ---
-  # Resolves security scan findings by enabling audit and diagnostic logs.
+  # --- SECURITY: Control Plane Hardening ---
+  # Resolves security scan findings by enabling audit logs and secret encryption.
   enabled_log_types = ["api", "audit", "authenticator", "controllerManager", "scheduler"]
+  
+  create_kms_key          = true
+  enable_kms_key_rotation = true
 }

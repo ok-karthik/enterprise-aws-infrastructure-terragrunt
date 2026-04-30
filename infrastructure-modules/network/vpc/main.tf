@@ -54,4 +54,32 @@ module "vpc" {
   create_flow_log_cloudwatch_log_group = true
   create_flow_log_cloudwatch_iam_role  = true
   flow_log_max_aggregation_interval    = 60
+
+  # --- SECURITY: Hardening Defaults ---
+  # These settings override the "Allow-All" defaults provided by AWS for new VPCs.
+  manage_default_network_acl = true
+  default_network_acl_ingress = [
+    {
+      rule_no    = 100
+      action     = "allow"
+      from_port  = 0
+      to_port    = 0
+      protocol   = "-1"
+      cidr_block = var.cidr # Only allow traffic from within the VPC by default
+    }
+  ]
+  default_network_acl_egress = [
+    {
+      rule_no    = 100
+      action     = "allow"
+      from_port  = 0
+      to_port    = 0
+      protocol   = "-1"
+      cidr_block = "0.0.0.0/0" # Allow all outbound (Required for updates/bootstrap)
+    }
+  ]
+
+  manage_default_security_group = true
+  default_security_group_ingress = [] # Deny all ingress to default SG
+  default_security_group_egress  = [] # Deny all egress from default SG
 }

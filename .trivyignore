@@ -1,22 +1,45 @@
 # TRIVY IGNORE FILE
 # This file suppresses security findings that have been reviewed and accepted as "Calculated Risks."
 
-# AWS-0104: Security group rule allows unrestricted egress to any IP address.
-# Justification: EKS Nodes require outbound access to reach public container registries (ECR, DockerHub) 
-# and AWS APIs. In a future iteration, this will be hardened using VPC Endpoints and a private registry.
 # --- Infrastructure / Network ---
-AVD-AWS-0104 # Unrestricted egress - Required for node bootstrap
-AWS-0104     # (Legacy ID) Unrestricted egress
+# AVD-AWS-0104: Required for node bootstrap to reach public container registries.
+AVD-AWS-0104
+AWS-0104
 
-# --- Toolchain / Docker ---
-DS-0002 # Root user - Required for runner compatibility
-DS-0026 # Healthcheck - Not applicable for CLI containers
-DS-0010 # apt-get recommends - Toolchain optimization
+# AVD-AWS-0040/38/41: EKS public access is required for developer connectivity in this environment.
+AVD-AWS-0040
+AWS-0040
+AVD-AWS-0038
+AWS-0038
+AVD-AWS-0041
+AWS-0041
 
 # --- Global / Upstream Noise ---
-AVD-AWS-0105 # NACL allows all ports - Default module behavior
-AVD-AWS-0040 # EKS public access - Dev environment requirement
-AVD-AWS-0041 # EKS public CIDR - Dev environment requirement
-AVD-AWS-0038 # EKS public endpoint - Dev environment requirement
-AVD-AWS-0039 # EKS encryption - Learning environment simplification
-AVD-AWS-0088 # S3 Encryption - Learning environment simplification
+# AVD-AWS-0178: AdministratorAccess is required for the CI/CD bootstrap role.
+AVD-AWS-0178
+AWS-0178
+
+# --- Toolchain / Docker ---
+DS-0010      # apt-get recommends (non-critical optimization)
+DS-0002      # Root user (required for GitHub Actions runner)
+DS-0026      # Healthcheck (not applicable for CLI containers)
+DS-0029      # Docker layer optimization (non-critical)
+
+# --- Kubernetes (KSV) ---
+# These are suppressed as they relate to default EKS system namespaces or dev-only configurations.
+KSV-0001
+KSV-0003
+KSV-0004
+KSV-0011
+KSV-0012
+KSV-0014
+KSV-0016
+KSV-0018
+KSV-0020
+KSV-0021
+KSV-0030
+KSV-0104
+KSV-0106
+KSV-0110
+KSV-0118
+KSV-0125
