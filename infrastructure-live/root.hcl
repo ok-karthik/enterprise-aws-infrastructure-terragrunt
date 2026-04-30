@@ -3,8 +3,6 @@
 
 locals {
   # 1. Load the variables from your file structure
-  # WE NO LONGER RELY ON env.hcl FOR IDENTITY - WE USE THE FOLDER PATH!
-  # This makes the code completely "Clonable".
   env = split("/", path_relative_to_include())[0]
 
   region_vars  = read_terragrunt_config(find_in_parent_folders("region.hcl"))
@@ -14,22 +12,25 @@ locals {
   # 2. Extract them into simple local variables
   aws_region    = local.region_vars.locals.aws_region
   account_alias = local.account_vars.locals.account_name
-  cluster_name  = local.env_vars.locals.cluster_name # Stored in env.hcl for unique naming
+  cluster_name  = local.env_vars.locals.cluster_name
 
-  # 3. Get the Account ID dynamically (No need to hardcode this one if you don't want to)
+  # 3. Get the Account ID dynamically
   account_id = get_aws_account_id()
+
+  # 4. Define the Backend Configuration
+  # This is used for BOTH bucket creation and file generation.
+  backend_bucket = "tg-state-${local.account_id}-${local.account_alias}-${local.aws_region}"
+  backend_key    = "${path_relative_to_include()}/terraform.tfstate"
 }
 
 
-# Generate an AWS provider block
+# --- GENERATION: Provider ---
 generate "provider" {
   path      = "provider.tf"
   if_exists = "overwrite_terragrunt"
   contents  = <<EOF
 provider "aws" {
   region = "${local.aws_region}"
-
-  # Only allow this to run on the correct account (Safety Feature!)
   allowed_account_ids = ["${local.account_id}"]
 
   default_tags {
@@ -45,28 +46,42 @@ provider "aws" {
 EOF
 }
 
-# Configure S3 State Backend automatically
+# --- GENERATION: Backend ---
+# We use a manual 'generate' block to ensure 100% control over the HCL.
+# This prevents Terragrunt 1.0.1 from leaking internal security keys into the file.
+generate "backend" {
+  path      = "backend.tf"
+  if_exists = "overwrite_terragrunt"
+  contents  = <<EOF
+terraform {
+  backend "s3" {
+    bucket         = "${local.backend_bucket}"
+    key            = "${local.backend_key}"
+    region         = "${local.aws_region}"
+    encrypt        = true
+    use_lockfile   = true
+  }
+}
+EOF
+}
+
+# --- BUCKET MANAGEMENT ---
+# We use 'remote_state' WITHOUT 'generate' to handle bucket creation and hardening.
 remote_state {
   backend = "s3"
-  generate = {
-    path      = "backend.tf"
-    if_exists = "overwrite_terragrunt"
-  }
   config = {
-    # CHANGE THIS to a unique bucket name for your state
-    bucket       = "tg-state-${local.account_id}-${local.account_alias}-${local.aws_region}"
-    key          = "${path_relative_to_include()}/terraform.tfstate"
-    region       = "${local.aws_region}"
-    encrypt      = true
-    use_lockfile = true
+    bucket         = local.backend_bucket
+    key            = local.backend_key
+    region         = local.aws_region
+    encrypt        = true
+    use_lockfile   = true
 
     # --- SECURITY: Hardening the State Bucket ---
-    # These 'access_' keys are native to Terragrunt for bucket creation.
-    # They are automatically filtered out from the generated backend.tf.
+    # These are used by Terragrunt for bucket creation but are NOT passed to 'generate'.
     skip_bucket_versioning         = false
     access_block_public_acls       = true
     access_block_public_policy     = true
-    access_ignore_public_acls      = true
-    access_restrict_public_buckets = true
+    ignore_public_acls      = true
+    restrict_public_buckets = true
   }
 }
