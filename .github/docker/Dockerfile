@@ -1,3 +1,6 @@
+# Global ARGs for multi-stage support
+ARG TRIVY_VERSION=0.59.1
+
 # --- TOOLCHAIN BUILDER ---
 FROM debian:bookworm-slim AS builder
 
@@ -13,7 +16,6 @@ ARG TERRAGRUNT_VERSION=1.0.1 # renovate: datasource=github-releases depName=grun
 ARG TFLINT_VERSION=0.55.0 # renovate: datasource=github-releases depName=terraform-linters/tflint
 ARG CONFTEST_VERSION=0.56.0 # renovate: datasource=github-releases depName=open-policy-agent/conftest
 ARG TF_SUMMARIZE_VERSION=0.3.10 # renovate: datasource=github-releases depName=dineshba/tf-summarize
-ARG TRIVY_VERSION=0.59.1 # renovate: datasource=github-releases depName=aquasecurity/trivy
 
 WORKDIR /install
 
@@ -46,8 +48,8 @@ RUN ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') && \
     tar -xzf tf-summarize.tar.gz && \
     mv tf-summarize /usr/local/bin/
 
-# 6. Install Trivy
-RUN curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin "v${TRIVY_VERSION}"
+# 6. Install Trivy (Pull directly from official image for 100% reliability)
+COPY --from=aquasecurity/trivy:${TRIVY_VERSION} /usr/local/bin/trivy /usr/local/bin/trivy
 
 # --- FINAL TOOLCHAIN IMAGE ---
 FROM debian:bookworm-slim
