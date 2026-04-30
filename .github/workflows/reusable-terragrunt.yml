@@ -109,6 +109,8 @@ jobs:
 
       - name: "Trivy Security Scan (Plan)"
         uses: aquasecurity/trivy-action@v0.36.0
+        env:
+          TRIVY_IGNORE_FILE: ".trivyignore"
         with:
           scan-type: "config"
           scan-ref: "plans/"
