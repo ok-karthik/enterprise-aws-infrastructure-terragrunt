@@ -52,6 +52,12 @@ jobs:
         with:
           sarif_file: 'trivy-results.sarif'
 
+      - name: Upload Trivy SARIF results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
   # ─────────────────────────────────────────────────────────────
   # Gate 2-4: Multi-Environment Orchestration (Reusable)
   # ─────────────────────────────────────────────────────────────
