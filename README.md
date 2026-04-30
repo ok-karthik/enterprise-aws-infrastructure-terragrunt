@@ -165,7 +165,26 @@ We use **Open Policy Agent (OPA)** via **Conftest** to enforce custom organizati
 
 *   **🏷️ Mandatory Tagging**: Enforces `Service`, `Environment`, and `Project` tags on all resources.
 *   **💻 Instance Modernization**: Prevents the use of legacy AWS instance types (e.g., `t2.*`).
-*   **🔌 Sequential Dependency Gates**: Automated validation using `terragrunt run-all` to respect the infrastructure dependency graph.
+*   **🔌 Sequential Dependency Gates**: Automated validation using `terragrunt run --all` to respect the infrastructure dependency graph.
+
+---
+
+## 🛡️ Infrastructure Hardening & Compliance
+
+The platform has transitioned from a "Reporting" state to a **"Remediated at Source"** architecture. We enforce production-grade security defaults directly within the infrastructure modules to minimize the attack surface.
+
+### 📦 S3 Remote State Protection
+*   **Versioning**: All Terragrunt state buckets have **Versioning Enabled** for disaster recovery and point-in-time state rollback.
+*   **Public Access Block (BPA)**: Strict enforcement of S3 Block Public Access (ACLs, Policies, and Bucket-level) to prevent data leakage.
+*   **Server-Side Encryption**: 100% of state data is encrypted at rest using AES-256.
+
+### 🌐 VPC Perimeter Security (Zero-Trust)
+*   **Default NACL Management**: Explicit management of the default Network ACL to replace "Allow-All" defaults with restricted ingress/egress rules.
+*   **Security Group Hardening**: The default VPC Security Group is managed as a "Black Hole" (Deny-All) to ensure no unmanaged traffic enters the network.
+
+### ☸️ EKS Compute Hardening
+*   **Secrets Encryption**: Enabled KMS-based encryption for all Kubernetes Secrets at rest using dedicated, rotating AWS KMS keys (`AWS-0039`).
+*   **Control Plane Logging**: Full audit trails for API server, Authenticator, and Controller Manager are enabled by default.
 
 ---
 
@@ -193,8 +212,8 @@ We provide a dedicated [smoke-test.sh](infrastructure-live/scripts/smoke-test.sh
 ## 🛠️ Getting Started
 
 ### 📋 Prerequisites
-*   [Terraform](https://developer.hashicorp.com/terraform/downloads) (v1.5+)
-*   [Terragrunt](https://terragrunt.gruntwork.io/docs/getting-started/quick-start/) (v1.5.3+)
+*   [Terraform](https://developer.hashicorp.com/terraform/downloads) (v1.14.3+)
+*   [Terragrunt](https://terragrunt.gruntwork.io/docs/getting-started/quick-start/) (v1.0.2+)
 *   [TFLint](https://github.com/terraform-linters/tflint)
 *   [Checkov](https://www.checkov.io/)
 
@@ -212,7 +231,7 @@ We provide a dedicated [smoke-test.sh](infrastructure-live/scripts/smoke-test.sh
 tflint --init
 tflint --recursive
 checkov -d .
-terragrunt validate --terragrunt-version 1.5.3
+./infrastructure-live/scripts/smoke-test.sh
 ```
 
 For deeper reading see the official docs:
