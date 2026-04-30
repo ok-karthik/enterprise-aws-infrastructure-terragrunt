@@ -36,7 +36,7 @@ runs:
         soft_fail: false
 
     - name: Run Trivy Scan (Security)
-      uses: aquasecurity/trivy-action@master
+      uses: aquasecurity/trivy-action@v0.36.0
       with:
         scan-type: 'config'
         hide-progress: false
