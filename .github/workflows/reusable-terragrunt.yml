@@ -114,7 +114,6 @@ jobs:
         if: always()
         with:
           sarif_file: "checkov-results-${{ inputs.environment }}.sarif"
-          category: "checkov-governance-${{ inputs.environment }}"
 
       - name: "📂 X-Ray: Verify File Structure"
         run: |
@@ -143,7 +142,6 @@ jobs:
         if: always()
         with:
           sarif_file: "trivy-results-${{ inputs.environment }}.sarif"
-          category: "governance-${{ inputs.environment }}"
 
   cost-analysis:
     name: "💰 Cost Analysis (Infracost): ${{ inputs.environment }}"
