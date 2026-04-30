@@ -21,6 +21,7 @@ permissions:
   id-token: write
   contents: read
   pull-requests: write
+  security-events: write
 
 jobs:
   plan:
@@ -115,6 +116,7 @@ jobs:
         if: always()
         with:
           sarif_file: "trivy-results-${{ inputs.environment }}.sarif"
+          category: "governance-${{ inputs.environment }}"
 
   cost-analysis:
     name: "💰 Cost Analysis (Infracost): ${{ inputs.environment }}"
