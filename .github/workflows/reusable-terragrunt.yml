@@ -107,16 +107,23 @@ jobs:
       - name: "Checkov Security Audit"
         run: find plans -name "tfplan.json" -exec checkov -f {} --config-file .checkov.yaml \;
 
-      - name: "Prepare Scan Context"
-        run: cp .trivyignore plans/.trivyignore
+      - name: "📂 X-Ray: Verify File Structure"
+        run: |
+          echo "🔍 Searching for plans..."
+          ls -R
+          mkdir -p plans/ # Ensure dir exists
+          cp .trivyignore plans/.trivyignore || true
 
       - name: "Trivy Security Scan (Plan)"
         run: |
+          PLAN_FILE=$(find plans -name "tfplan.json" | head -n 1)
+          echo "🎯 Found Plan File: $PLAN_FILE"
+          
           echo "📊 Printing Table Report for Debugging..."
-          trivy config plans/tfplan.json --severity CRITICAL,HIGH --ignorefile plans/.trivyignore --format table
+          trivy config "$PLAN_FILE" --severity CRITICAL,HIGH --ignorefile plans/.trivyignore --format table
           
           echo "📡 Generating SARIF for GitHub Security Tab..."
-          trivy config plans/tfplan.json \
+          trivy config "$PLAN_FILE" \
             --severity CRITICAL,HIGH \
             --format sarif \
             --output trivy-results-${{ inputs.environment }}.sarif \
