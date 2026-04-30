@@ -40,7 +40,10 @@ runs:
     - name: Run Trivy Scan (Security)
       shell: bash
       run: |
-        echo "🛡️ Running Trivy scan..."
+        echo "📊 Printing Table Report for Debugging..."
+        trivy config . --severity CRITICAL,HIGH --ignorefile .trivyignore --format table
+
+        echo "🛡️ Running Trivy scan (SARIF)..."
         trivy config . \
           --severity CRITICAL,HIGH \
           --format sarif \
