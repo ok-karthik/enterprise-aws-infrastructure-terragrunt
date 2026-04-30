@@ -61,12 +61,12 @@ remote_state {
     use_lockfile = true
 
     # --- SECURITY: Hardening the State Bucket ---
-    # These keys are used by Terragrunt to CONFIGURE the bucket itself.
-    # Terragrunt automatically filters these out from the generated backend.tf.
-    versioning              = true
-    block_public_acls       = true
-    block_public_policy     = true
-    ignore_public_acls      = true
-    restrict_public_buckets = true
+    # These 'access_' keys are native to Terragrunt for bucket creation.
+    # They are automatically filtered out from the generated backend.tf.
+    skip_bucket_versioning         = false
+    access_block_public_acls       = true
+    access_block_public_policy     = true
+    access_ignore_public_acls      = true
+    access_restrict_public_buckets = true
   }
 }
