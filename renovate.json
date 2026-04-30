@@ -7,13 +7,10 @@
     "group:monorepos",
     "group:recommended"
   ],
-  "enabledManagers": [
-    "terragrunt",
-    "terraform",
-    "github-actions",
-    "custom.regex"
-  ],
   "description": "Enterprise-grade Renovate config for Terragrunt/Terraform infrastructure",
+  "dependencyDashboard": true,
+  "onboarding": false,
+  "prCreation": "not-pending",
   "customManagers": [
     {
       "customType": "regex",

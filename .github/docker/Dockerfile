@@ -1,3 +1,9 @@
+# Global ARGs for multi-stage support
+ARG TRIVY_VERSION=0.59.1
+
+# 1. Define Trivy source stage (supports variables)
+FROM public.ecr.aws/aquasecurity/trivy:${TRIVY_VERSION} AS trivy_source
+
 # --- TOOLCHAIN BUILDER ---
 FROM debian:bookworm-slim AS builder
 
@@ -45,6 +51,9 @@ RUN ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') && \
     tar -xzf tf-summarize.tar.gz && \
     mv tf-summarize /usr/local/bin/
 
+# 6. Install Trivy (Pull directly from named stage)
+COPY --from=trivy_source /usr/local/bin/trivy /usr/local/bin/trivy
+
 # --- FINAL TOOLCHAIN IMAGE ---
 FROM debian:bookworm-slim
 
@@ -83,6 +92,7 @@ RUN terraform version && \
     terragrunt --version && \
     tflint --version && \
     conftest --version && \
-    aws --version
+    aws --version && \
+    trivy version
 
 CMD ["/bin/bash"]

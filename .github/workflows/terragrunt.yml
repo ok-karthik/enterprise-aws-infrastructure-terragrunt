@@ -20,7 +20,6 @@ permissions:
   security-events: write
 
 env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
   AWS_REGION: ${{ github.event.inputs.target_region || vars.AWS_REGION }}
 
 jobs:
@@ -38,13 +37,21 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: "Git Checkout"
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: "Setup Platform"
         uses: ./.github/actions/setup-platform
 
       - name: "Static Analysis"
         uses: ./.github/actions/static-analysis
+
+      - name: Upload Trivy SARIF results
+        uses: github/codeql-action/upload-sarif@v4
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+
 
   # ─────────────────────────────────────────────────────────────
   # Gate 2-4: Multi-Environment Orchestration (Reusable)
@@ -88,7 +95,7 @@ jobs:
     environment: dev
     steps:
       - name: "Git Checkout"
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: "Setup Platform"
         uses: ./.github/actions/setup-platform
@@ -114,7 +121,7 @@ jobs:
     environment: prod
     steps:
       - name: "Git Checkout"
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: "Setup Platform"
         uses: ./.github/actions/setup-platform

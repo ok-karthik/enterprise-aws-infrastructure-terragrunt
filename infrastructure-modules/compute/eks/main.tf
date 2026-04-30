@@ -19,6 +19,7 @@ module "eks" {
   vpc_id     = var.vpc_id
   subnet_ids = var.subnet_ids
 
+
   # --- GOVERNANCE: Standard Node Groups ---
   # Every cluster in the organization uses Spot Managed Node Groups to save costs.
   eks_managed_node_groups = {

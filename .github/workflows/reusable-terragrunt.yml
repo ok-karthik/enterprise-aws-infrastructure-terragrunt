@@ -16,6 +16,7 @@ on:
       INFRACOST_API_KEY:
         required: false
 
+
 permissions:
   id-token: write
   contents: read
@@ -33,7 +34,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: "Git Checkout"
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: "Setup Platform"
         uses: ./.github/actions/setup-platform
@@ -64,7 +65,7 @@ jobs:
         run: find ${{ inputs.working_directory }} -name "tfplan.json"
 
       - name: "Upload Plans"
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: "plans-${{ inputs.environment }}"
           path: "${{ inputs.working_directory }}/**/tfplan.json"
@@ -83,13 +84,13 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: "Git Checkout"
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: "Setup Platform"
         uses: ./.github/actions/setup-platform
 
       - name: "Download Plans"
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with:
           name: "plans-${{ inputs.environment }}"
           path: plans
@@ -99,6 +100,21 @@ jobs:
 
       - name: "Checkov Security Audit"
         run: find plans -name "tfplan.json" -exec checkov -f {} --config-file .checkov.yaml \;
+
+      - name: "Trivy Security Scan (Plan)"
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: "config"
+          scan-ref: "plans/"
+          severity: "CRITICAL,HIGH"
+          format: "sarif"
+          output: "trivy-results-${{ inputs.environment }}.sarif"
+
+      - name: Upload Trivy SARIF results
+        uses: github/codeql-action/upload-sarif@v4
+        if: always()
+        with:
+          sarif_file: "trivy-results-${{ inputs.environment }}.sarif"
 
   cost-analysis:
     name: "💰 Cost Analysis (Infracost): ${{ inputs.environment }}"
@@ -112,7 +128,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: "Git Checkout"
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: "Setup Platform"
         uses: ./.github/actions/setup-platform
@@ -121,9 +137,10 @@ jobs:
         uses: infracost/actions/setup@v4
         with:
           api-key: ${{ secrets.INFRACOST_API_KEY }}
+          version: 0.10.44
 
       - name: "Download Plans"
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with:
           name: "plans-${{ inputs.environment }}"
           path: plans
@@ -155,7 +172,7 @@ jobs:
 
       - name: "Post PR Comment"
         if: github.event.pull_request.number != null || github.event_name == 'pull_request'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const fs = require('fs');

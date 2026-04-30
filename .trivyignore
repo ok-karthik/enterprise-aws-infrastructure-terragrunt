@@ -4,4 +4,14 @@
 # AWS-0104: Security group rule allows unrestricted egress to any IP address.
 # Justification: EKS Nodes require outbound access to reach public container registries (ECR, DockerHub) 
 # and AWS APIs. In a future iteration, this will be hardened using VPC Endpoints and a private registry.
-AWS-0104
+# --- Infrastructure / Network ---
+AWS-0104 # Unrestricted egress - Required for pulling images/updates during node bootstrap
+
+# --- Toolchain / Docker ---
+DS-0002 # Root user - Required for GitHub Actions runner compatibility and workspace permissions
+DS-0026 # Healthcheck - Not applicable for CLI toolchains (non-daemon containers)
+
+# --- Global / Upstream Noise ---
+AVD-AWS-0105 # NACL allows all ports - Default behavior in terraform-aws-modules/vpc
+AVD-AWS-0040 # EKS public access - Business requirement for Dev/Learning environment
+AVD-AWS-0038 # EKS public endpoint - Business requirement for Dev/Learning environment
