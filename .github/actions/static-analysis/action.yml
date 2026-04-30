@@ -34,6 +34,8 @@ runs:
       with:
         config_file: .checkov.yaml
         soft_fail: false
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
 
     - name: Run Trivy Scan (Security)
       uses: aquasecurity/trivy-action@v0.36.0

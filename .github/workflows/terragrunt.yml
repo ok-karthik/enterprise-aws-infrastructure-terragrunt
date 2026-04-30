@@ -5,6 +5,8 @@ on:
   push:
     branches:
       - main
+      - feature/*
+      - release/*
   pull_request:
   workflow_dispatch:
     inputs:
@@ -35,6 +37,11 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
     timeout-minutes: 10
+    permissions:
+      id-token: write
+      contents: read
+      pull-requests: write
+      security-events: write
     steps:
       - name: "Git Checkout"
         uses: actions/checkout@v6
