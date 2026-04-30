@@ -18,6 +18,12 @@ module "eks" {
 
   vpc_id     = var.vpc_id
   subnet_ids = var.subnet_ids
+  
+  # --- SECURITY: Endpoint Access ---
+  # Maintaining public access for development, but declaring explicitly for governance.
+  cluster_endpoint_public_access       = true
+  cluster_endpoint_public_access_cidrs = ["0.0.0.0/0"]
+  cluster_endpoint_private_access      = true
 
   # --- GOVERNANCE: Standard Node Groups ---
   # Every cluster in the organization uses Spot Managed Node Groups to save costs.
