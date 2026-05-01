@@ -32,7 +32,7 @@
       "description": "Track Terragrunt registry modules (tfr:// protocol)",
       "fileMatch": ["\\.hcl$"],
       "matchStrings": [
-        "source\\s*=\\s*\"tfr://registry\\.terraform\\.io/(?<depName>[^\\?]+)(?://.*?)?\\?version=(?<currentValue>[^\"]+)\""
+        "source\\s*=\\s*\"tfr://registry\\.terraform\\.io/(?<depName>[^/]+/[^/]+/[^/\\?]+)(?://.*?)?\\?version=(?<currentValue>[^\"]+)\""
       ],
       "datasourceTemplate": "terraform-module"
     }
