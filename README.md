@@ -221,6 +221,16 @@ We provide a dedicated [smoke-test.sh](infrastructure-live/scripts/smoke-test.sh
 
 ---
 
+## 🤖 Coming Up: Agentic AI Integration (Roadmap)
+
+To push the boundaries of automated DevOps, the next phase of this platform focuses on integrating **AI Agents** directly into the CI/CD pipeline using Python and Open-Source/Free-Tier LLMs.
+
+*   **Security Remediation Agent**: An AI agent that analyzes security vulnerabilities caught by Checkov or Trivy, identifies the missing code, and suggests the exact remediation or suppression block.
+*   **Automated Drift Response Agent**: An AI agent that analyzes the output of the nightly drift detection workflow and automatically generates a Pull Request with the relevant code or state manipulation commands needed to resolve the drift.
+*   **Natural Language to IaC**: An experimental agent capable of turning plain-text infrastructure requests (e.g., "Give me a highly available RDS Postgres instance") into fully compliant Terragrunt/Terraform code, directly integrated into the repository workflow.
+
+---
+
 ## 🛠️ Getting Started
 
 ### 📋 Prerequisites

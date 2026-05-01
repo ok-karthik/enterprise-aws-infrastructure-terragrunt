@@ -33,7 +33,7 @@
     {
       "customType": "regex",
       "description": "Track Terragrunt registry modules (tfr:// protocol)",
-      "fileMatch": ["(^|/)terragrunt\\.hcl$"],
+      "fileMatch": ["\\.hcl$"],
       "matchStrings": [
         "source\\s*=\\s*\"tfr://registry\\.terraform\\.io/(?<depName>.*?)(?://.*?)?\\?version=(?<currentValue>.*?)\""
       ],
