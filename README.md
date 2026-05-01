@@ -171,7 +171,7 @@ The pipeline posts a consolidated report for each environment (**dev** and **pro
 ### ⚖️ Governance & Policy (OPA)
 We use **Open Policy Agent (OPA)** via **Conftest** to enforce custom organizational "laws."
 
-> **Impact:** OPA ensures **100% mandatory tagging** and **0% t2.* instance usage**, significantly reducing policy drift.
+> **Impact:** While Checkov scans for baseline CVEs, OPA ensures custom Org-level laws like **100% mandatory tagging** and **0% t2.* instance usage**, significantly reducing policy drift.
 
 *   **🏷️ Mandatory Tagging**: Enforces `Service`, `Environment`, and `Project` tags on all resources.
 *   **💻 Instance Modernization**: Prevents the use of legacy AWS instance types (e.g., `t2.*`).
@@ -183,8 +183,10 @@ We use **Open Policy Agent (OPA)** via **Conftest** to enforce custom organizati
 
 The platform has transitioned from a "Reporting" state to a **"Remediated at Source"** architecture. We enforce production-grade security defaults directly within the infrastructure modules to minimize the attack surface.
 
-### 📦 S3 Remote State Protection
-*   **Versioning**: All Terragrunt state buckets have **Versioning Enabled** for disaster recovery and point-in-time state rollback.
+### 📦 S3 Remote State & Concurrency (Day 2 Ops)
+Managing state at scale requires strict concurrency controls and disaster recovery mechanisms:
+*   **DynamoDB State Locking**: Terragrunt natively leverages DynamoDB to lock the state file during execution, preventing race conditions and concurrent apply corruption.
+*   **S3 Versioning**: All Terragrunt state buckets have **Versioning strictly enabled** for disaster recovery and point-in-time state rollback.
 *   **Public Access Block (BPA)**: Strict enforcement of S3 Block Public Access (ACLs, Policies, and Bucket-level) to prevent data leakage.
 *   **Server-Side Encryption**: 100% of state data is encrypted at rest using AES-256.
 

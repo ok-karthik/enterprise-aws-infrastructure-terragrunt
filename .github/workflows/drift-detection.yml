@@ -1,0 +1,69 @@
+name: 'Drift Detection (Nightly)'
+
+on:
+  schedule:
+    - cron: '0 6 * * *' # Run daily at 6:00 AM UTC
+  workflow_dispatch:      # Allow manual triggering
+
+permissions:
+  id-token: write
+  contents: read
+  issues: write         # Required to create drift alert issues
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION }}
+
+jobs:
+  detect-drift-prod:
+    name: '🔍 Detect Drift: Prod'
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/ok-karthik/infrastructure-toolchain:feature-improvements
+      options: --user root
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    timeout-minutes: 30
+
+    steps:
+      - name: "Git Checkout"
+        uses: actions/checkout@v6
+
+      - name: "Setup Platform"
+        uses: ./.github/actions/setup-platform
+        with:
+          aws_region: ${{ env.AWS_REGION }}
+          aws_role_arn: ${{ vars.AWS_PROD_ROLE_ARN }}
+
+      - name: "Check for Infrastructure Drift"
+        id: plan
+        # -detailed-exitcode returns 2 if there are changes (drift)
+        run: |
+          set +e
+          terragrunt run-all plan -detailed-exitcode --non-interactive
+          exitcode=$?
+          set -e
+
+          if [ $exitcode -eq 2 ]; then
+            echo "DRIFT_DETECTED=true" >> $GITHUB_ENV
+            echo "Drift detected in Production! Exit code 2."
+          elif [ $exitcode -ne 0 ]; then
+            echo "Error running plan. Exit code $exitcode"
+            exit 1
+          else
+            echo "No drift detected. Infrastructure matches code."
+          fi
+        working-directory: infrastructure-live/prod
+
+      - name: "Alert on Drift (Create GitHub Issue)"
+        if: env.DRIFT_DETECTED == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: "🚨 Infrastructure Drift Detected in Production!",
+              body: "The nightly drift detection workflow found that the live infrastructure in `prod` does not match the Terraform state/code.\n\nPlease review the [Action Logs](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) to see the exact resources that have drifted and remediate immediately.",
+              labels: ["bug", "security", "drift"]
+            })
