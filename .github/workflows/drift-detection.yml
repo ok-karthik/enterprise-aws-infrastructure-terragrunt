@@ -46,7 +46,7 @@ jobs:
         # -detailed-exitcode returns 2 if there are changes (drift)
         run: |
           set +e
-          terragrunt run-all plan --non-interactive -- -detailed-exitcode
+          terragrunt run --all plan --non-interactive -- -detailed-exitcode
           exitcode=$?
           set -e
 
