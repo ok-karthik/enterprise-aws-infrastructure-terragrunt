@@ -14,8 +14,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Define tool versions (Sync with renovate.json)
-ARG TERRAFORM_VERSION=1.14.3 # renovate: datasource=github-releases depName=hashicorp/terraform
-ARG TERRAGRUNT_VERSION=1.0.2 # renovate: datasource=github-releases depName=gruntwork-io/terragrunt
+ARG TERRAFORM_VERSION=1.15.1 # renovate: datasource=github-releases depName=hashicorp/terraform
+ARG TERRAGRUNT_VERSION=1.0.3 # renovate: datasource=github-releases depName=gruntwork-io/terragrunt
 ARG TFLINT_VERSION=0.62.0 # renovate: datasource=github-releases depName=terraform-linters/tflint
 ARG CONFTEST_VERSION=0.68.2 # renovate: datasource=github-releases depName=open-policy-agent/conftest
 ARG TF_SUMMARIZE_VERSION=0.3.20 # renovate: datasource=github-releases depName=dineshba/tf-summarize

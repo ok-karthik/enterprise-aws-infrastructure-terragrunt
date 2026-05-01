@@ -5,11 +5,11 @@ inputs:
   terraform_version:
     description: 'Version of Terraform to install'
     required: false
-    default: '1.14.8' # renovate: datasource=github-releases depName=hashicorp/terraform
+    default: '1.15.1' # renovate: datasource=github-releases depName=hashicorp/terraform
   terragrunt_version:
     description: 'Version of Terragrunt to install'
     required: false
-    default: '1.0.1' # renovate: datasource=github-releases depName=gruntwork-io/terragrunt
+    default: '1.0.3' # renovate: datasource=github-releases depName=gruntwork-io/terragrunt
   tflint_version:
     description: 'Version of TFLint to install'
     required: false
