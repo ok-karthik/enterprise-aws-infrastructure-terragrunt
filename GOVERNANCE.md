@@ -32,7 +32,7 @@ To ensure the integrity of the `main` branch, the following **GitHub UI settings
 2.  **Require a pull request before merging**: Checked.
     - **Require approvals**: 1
 3.  **Require status checks to pass before merging**: Checked.
-    - **Status checks**: 
+    - **Status checks**:
         - `🔍 Quality: Lint & Validate`
         - `📝 Plan: dev`
         - `📝 Plan: prod`

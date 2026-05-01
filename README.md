@@ -20,22 +20,22 @@ This platform follows a **Hierarchical Blueprint Pattern** using Terragrunt. It 
 graph LR
     Dev[Developer] -->|Git Push| Git[GitHub Repo]
     Git -->|Trigger| GHA[GitHub Actions]
-    
+
     subgraph "Governance Pipeline"
     GHA -->|Gate 1| Static[Lint & Security]
     Static -->|Gate 2| Plan[Terragrunt Plan]
     Plan -->|Gate 3| OPA[OPA Policy Audit]
     end
-    
+
     OPA -->|Approval| AWS[AWS Infrastructure]
-    
+
     subgraph "AWS Ecosystem"
     AWS --> VPC["Network: VPC"]
     AWS --> EKS["Compute: EKS"]
     AWS --> S3["Storage: S3"]
     AWS --> IAM["Identity: OIDC"]
     end
-    
+
     style Dev fill:#f9f,stroke:#333,stroke-width:2px
     style AWS fill:#ff9900,stroke:#232f3e,stroke-width:2px
 ```
@@ -67,9 +67,9 @@ graph LR
 
 ## 🤝 Contributing
 
-1️⃣ **Fork the repo**  
-2️⃣ **Create a feature branch** (`feat/your-name`)  
-3️⃣ **Validate locally**: `tflint --recursive && checkov -d .`  
+1️⃣ **Fork the repo**
+2️⃣ **Create a feature branch** (`feat/your-name`)
+3️⃣ **Validate locally**: `tflint --recursive && checkov -d .`
 4️⃣ **Submit a PR**: The 5-stage pipeline runs automatically.
 
 ---
@@ -79,7 +79,7 @@ graph LR
 The core of this platform is a sophisticated **5-Stage Pipeline** that transitions infrastructure from code to production with multiple security and cost gates.
 
 ### 🏗️ Dual-Gate Pipeline Architecture
-The platform utilizes a **Modular CI/CD Orchestration** model built on GitHub Reusable Workflows and Composite Actions. 
+The platform utilizes a **Modular CI/CD Orchestration** model built on GitHub Reusable Workflows and Composite Actions.
 
 > **Outcome:** CI/CD pipeline now supports **5-parallel environment plans**; time from PR to prod cut from **3 days → 6 hours**.
 
@@ -159,7 +159,7 @@ The pipeline posts a consolidated report for each environment (**dev** and **pro
 *   **Least Privilege**: The CI/CD role is strictly scoped to specific IAM actions and repository branches.
 
 ### ⚖️ Governance & Policy (OPA)
-We use **Open Policy Agent (OPA)** via **Conftest** to enforce custom organizational "laws." 
+We use **Open Policy Agent (OPA)** via **Conftest** to enforce custom organizational "laws."
 
 > **Impact:** OPA ensures **100% mandatory tagging** and **0% t2.* instance usage**, significantly reducing policy drift.
 
@@ -190,7 +190,7 @@ The platform has transitioned from a "Reporting" state to a **"Remediated at Sou
 
 ## 💰 FinOps & Efficiency
 
-*   **Spot Instance Savings**: In the `dev` environment, EKS node groups use Spot capacity. 
+*   **Spot Instance Savings**: In the `dev` environment, EKS node groups use Spot capacity.
     *   **Outcome:** Spot usage cut dev-environment spend from **$1,200 → $180/month (-85%)**.
 *   **GP3 Storage Mandate**: Automated governance ensures all EBS volumes are provisioned as `gp3`, optimizing for both performance and price.
 *   **Lifecycle Management**: A dedicated **Manual Teardown Workflow** allows for surgical removal of resources in non-production environments.
@@ -202,7 +202,7 @@ The platform has transitioned from a "Reporting" state to a **"Remediated at Sou
 The platform is designed with a **Recovery Point Objective (RPO)** of near-zero and a fast **Recovery Time Objective (RTO)** through automated orchestration.
 
 ### 🧪 Automated Smoke Tests
-We provide a dedicated [smoke-test.sh](infrastructure-live/scripts/smoke-test.sh) that validates the platform's readiness. 
+We provide a dedicated [smoke-test.sh](infrastructure-live/scripts/smoke-test.sh) that validates the platform's readiness.
 *   **HCL Integrity**: Ensures all code is syntactically valid.
 *   **Dependency Graph**: Validates that Terragrunt can resolve all module relationships.
 *   **Compliance Check**: Ensures 100% regional and environmental naming compliance.

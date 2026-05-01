@@ -87,7 +87,7 @@ RUN ARCH=$(uname -m) && \
     rm -rf awscliv2.zip ./aws
 
 # Create a non-root user for security
-# Note: We do NOT set 'USER platform' here because GitHub Actions 
+# Note: We do NOT set 'USER platform' here because GitHub Actions
 # requires root permissions to manage the workspace and temp directories.
 # The 'platform' user is still available for manual/local use.
 WORKDIR /workspace

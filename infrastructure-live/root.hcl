@@ -51,11 +51,11 @@ remote_state {
   config = {
     # --- Standard S3 Backend Config ---
     # These are standard keys recognized by both Terragrunt and Terraform.
-    bucket         = "tg-state-${local.account_id}-${local.account_alias}-${local.aws_region}"
-    key            = "${path_relative_to_include()}/terraform.tfstate"
-    region         = "${local.aws_region}"
-    encrypt        = true
-    use_lockfile   = true
+    bucket       = "tg-state-${local.account_id}-${local.account_alias}-${local.aws_region}"
+    key          = "${path_relative_to_include()}/terraform.tfstate"
+    region       = "${local.aws_region}"
+    encrypt      = true
+    use_lockfile = true
 
     # --- SECURITY: S3 Bucket Tags ---
     # Terragrunt uses these for bucket creation and filters them from backend.tf.
@@ -66,8 +66,8 @@ remote_state {
     }
 
     # NOTE: Terragrunt 1.0.x enables S3 Versioning by default for auto-created buckets.
-    # To avoid 'Invalid argument' errors during init, we rely on Terragrunt's 
-    # internal defaults for Block Public Access which are enforced during 
+    # To avoid 'Invalid argument' errors during init, we rely on Terragrunt's
+    # internal defaults for Block Public Access which are enforced during
     # the bucket creation handshake.
   }
 }

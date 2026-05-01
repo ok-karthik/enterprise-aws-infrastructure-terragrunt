@@ -7,7 +7,7 @@ include "envcommon" {
   expose = true
 }
 
-# No changes needed to local variables as they are inherited, 
+# No changes needed to local variables as they are inherited,
 # but CIDR is specific to this region.
 inputs = {
   cidr = "10.0.0.0/16"

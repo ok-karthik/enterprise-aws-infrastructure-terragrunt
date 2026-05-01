@@ -38,12 +38,12 @@ runs:
         echo "🔍 Validating inputs..."
         # Fix for 'dubious ownership' when running git in a container
         git config --global --add safe.directory '*'
-        
+
         if [[ -n "${{ inputs.aws_role_arn }}" ]] && [[ -z "${{ inputs.aws_region }}" ]]; then
           echo "❌ ERROR: aws_region is required when aws_role_arn is provided."
           exit 1
         fi
-        
+
         # Verify runner OS
         if [[ "$RUNNER_OS" != "Linux" ]]; then
           echo "❌ ERROR: This action currently only supports Linux runners."
@@ -79,10 +79,10 @@ runs:
       run: |
         echo "🔐 Verifying AWS session..."
         # Added 10s timeout to prevent hangs. Failure here means OIDC was rejected.
-        timeout 10 aws sts get-caller-identity --query "Arn" --output text || { 
+        timeout 10 aws sts get-caller-identity --query "Arn" --output text || {
           echo "❌ ERROR: Failed to verify AWS identity."
           echo "👉 Check if the IAM Role trust policy allows OIDC from this repo/environment."
-          exit 1 
+          exit 1
         }
 
     - name: Verify AWS Identity (Idempotency Check)
@@ -91,8 +91,8 @@ runs:
       run: |
         echo "🔐 Verifying AWS session..."
         # Added 10s timeout to prevent hangs. Failure here means OIDC was rejected.
-        timeout 10 aws sts get-caller-identity --query "Arn" --output text || { 
+        timeout 10 aws sts get-caller-identity --query "Arn" --output text || {
           echo "❌ ERROR: Failed to verify AWS identity."
           echo "👉 Check if the IAM Role trust policy allows OIDC from this repo/environment."
-          exit 1 
+          exit 1
         }

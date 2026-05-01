@@ -2,7 +2,7 @@
 set -e
 
 # --- 🚀 Platform Smoke Test (Disaster Recovery Validation) ---
-# This script validates that the platform code is syntactically correct 
+# This script validates that the platform code is syntactically correct
 # and that the remote state backend is reachable.
 
 RED='\033[0;31m'
@@ -58,6 +58,7 @@ cd - > /dev/null
 
 # 3. TFLint recursive scan
 echo -e "\n3. Running TFLint recursive scan..."
+tflint --init
 if tflint --recursive --format=compact; then
     echo -e "${GREEN}✅ TFLint passed for all modules.${NC}"
 else

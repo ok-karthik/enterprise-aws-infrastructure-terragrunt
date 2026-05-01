@@ -17,7 +17,7 @@ done
 if [ $FAIL -eq 1 ]; then
     echo "⚠️ License compliance check failed. Please add LICENSE files to all modules."
     # We soft-fail this for now as it's a documentation requirement
-    exit 0 
+    exit 0
 else
     echo "✅ All local modules have licenses."
     exit 0

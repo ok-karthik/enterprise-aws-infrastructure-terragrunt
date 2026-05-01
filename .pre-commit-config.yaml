@@ -1,0 +1,35 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+        args: ['--unsafe']
+      - id: check-merge-conflict
+
+  - repo: local
+    hooks:
+      - id: terraform-fmt
+        name: 🎨 Terraform & Terragrunt Format
+        # Automatically fixes formatting before the smoke test runs
+        entry: bash -c 'terraform fmt -recursive infrastructure-modules infrastructure-live infrastructure-bootstrap policies && terragrunt hcl fmt'
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      - id: platform-smoke-test
+        name: 🧪 Platform Smoke Test (Validate & TFLint)
+        # Reuses your battle-tested script
+        entry: ./infrastructure-live/scripts/smoke-test.sh
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      - id: trivy-security-scan
+        name: 🛡️ Trivy Security Scan (HCL)
+        # Runs the same scan as Gate 1 in your CI pipeline
+        entry: trivy config . --severity CRITICAL,HIGH --ignorefile .trivyignore --format table
+        language: system
+        pass_filenames: false
+        always_run: true

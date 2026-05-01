@@ -7,7 +7,7 @@ terraform {
 }
 
 # The module defaults to GitHub (https://token.actions.githubusercontent.com)
-# and the standard audience (sts.amazonaws.com). 
+# and the standard audience (sts.amazonaws.com).
 # No additional inputs are strictly required for the basic setup.
 inputs = {
   tags = {

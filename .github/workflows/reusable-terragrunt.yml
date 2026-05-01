@@ -50,7 +50,7 @@ jobs:
         run: |
           # 1. Generate binary plans
           terragrunt run --all plan --non-interactive -no-color -- -out=tfplan.bin
-          
+
           # 2. Convert to JSON (searching inside .terragrunt-cache)
           echo "🔍 Converting binary plans to JSON..."
           find . -name "tfplan.bin" | while read -r plan_path; do
@@ -126,10 +126,10 @@ jobs:
         run: |
           PLAN_FILE=$(find plans -name "tfplan.json" | head -n 1)
           echo "🎯 Found Plan File: $PLAN_FILE"
-          
+
           echo "📊 Printing Table Report for Debugging..."
           trivy config "$PLAN_FILE" --severity CRITICAL,HIGH --ignorefile plans/.trivyignore --format table
-          
+
           echo "📡 Generating SARIF for GitHub Security Tab..."
           trivy config "$PLAN_FILE" \
             --severity CRITICAL,HIGH \
@@ -189,7 +189,7 @@ jobs:
           # 2. Change Summary (tf-summarize)
           echo "## 📊 Infrastructure Change Summary (${{ inputs.environment }})" > /tmp/pr-comment.md
           echo "> 💡 This report summarizes resource changes and estimated cost impact for the **${{ inputs.environment }}** environment." >> /tmp/pr-comment.md
-          
+
           find plans -name "tfplan.json" | while read -r plan; do
             module_name=$(dirname $plan | sed 's|plans/||')
             echo -e "\n<details><summary><b>📂 Module: ${module_name}</b></summary>\n" >> /tmp/pr-comment.md
@@ -216,7 +216,7 @@ jobs:
               issue_number: context.issue.number || ${{ github.event.pull_request.number }},
             });
             const botComment = comments.find(c => c.body.includes(`Infrastructure Change Summary (${envName})`));
-            
+
             if (botComment) {
               await github.rest.issues.updateComment({
                 owner: context.repo.owner,
