@@ -21,13 +21,14 @@ graph LR
     Dev[Developer] -->|Git Push| Git[GitHub Repo]
     Git -->|Trigger| GHA[GitHub Actions]
 
-    subgraph "Governance Pipeline"
-    GHA -->|Gate 1| Static[Lint & Security]
-    Static -->|Gate 2| Plan[Terragrunt Plan]
-    Plan -->|Gate 3| OPA[OPA Policy Audit]
+    subgraph "Parallel Governance"
+    GHA --> Static[Lint & Security]
+    GHA --> Plan[Terragrunt Plan]
+    Plan --> Cost[Cost Analysis]
+    Plan --> OPA[OPA Policy Audit]
     end
 
-    OPA -->|Approval| AWS[AWS Infrastructure]
+    Cost & OPA & Static -->|Approval| AWS[AWS Infrastructure]
 
     subgraph "AWS Ecosystem"
     AWS --> VPC["Network: VPC"]
