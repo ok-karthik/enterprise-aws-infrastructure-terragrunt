@@ -33,13 +33,13 @@ To ensure the integrity of the `main` branch, the following **GitHub UI settings
     - **Require approvals**: 1
 3.  **Require status checks to pass before merging**: Checked.
     - **Status checks**:
-        - `🔍 Quality: Lint & Validate`
-        - `📝 Plan: dev`
-        - `📝 Plan: prod`
-        - `⚖️ Security & Governance (OPA/Checkov): dev`
-        - `⚖️ Security & Governance (OPA/Checkov): prod`
-        - `💰 Cost Analysis (Infracost): dev`
-        - `💰 Cost Analysis (Infracost): prod`
+        - `🔍 Static Analysis (TFLint/Checkov)`
+        - `Dev / 📝 Plan: dev`
+        - `Prod / 📝 Plan: prod`
+        - `Dev / ⚖️ Security & Governance (OPA/Checkov): dev`
+        - `Prod / ⚖️ Security & Governance (OPA/Checkov): prod`
+        - `Dev / 💰 Cost Analysis (Infracost): dev`
+        - `Prod / 💰 Cost Analysis (Infracost): prod`
 4.  **Require conversation resolution before merging**: Checked (ensures all reviewer comments are addressed).
 5.  **Restrict deletions**: Checked.
 
@@ -49,5 +49,5 @@ To ensure the integrity of the `main` branch, the following **GitHub UI settings
 
 ## 📜 Compliance Auditing
 - **CloudTrail**: Enabled globally for all infrastructure changes.
-- **Trivy/Checkov**: Continuous scanning for known vulnerabilities and misconfigurations in HCL.
+- **Trivy/Checkov**: Continuous scanning for known vulnerabilities and misconfigurations. Both tools are configured as **Strict Blocking Gates** (exit code 1) for any High or Critical findings.
 - **License Compliance**: Automated verification that all local modules include a standard open-source LICENSE, preventing legal risk and vendor lock-in.

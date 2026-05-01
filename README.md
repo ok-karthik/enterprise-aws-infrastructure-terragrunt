@@ -81,7 +81,7 @@ The core of this platform is a sophisticated **5-Stage Pipeline** that transitio
 ### 🏗️ Dual-Gate Pipeline Architecture
 The platform utilizes a **Modular CI/CD Orchestration** model built on GitHub Reusable Workflows and Composite Actions.
 
-> **Outcome:** CI/CD pipeline now supports **5-parallel environment plans**; time from PR to prod cut from **3 days → 6 hours**.
+> **Outcome:** CI/CD pipeline now supports **parallel environment planning and decoupled security/cost scanning**, cutting the time from PR to Prod from **3 days → 3 minutes**.
 
 1.  **Gate 1: High-Speed Static Analysis (HCL)**
     *   **Goal**: Immediate feedback for developers.
@@ -90,21 +90,29 @@ The platform utilizes a **Modular CI/CD Orchestration** model built on GitHub Re
     *   **Goal**: Final safety check before deployment.
     *   **Tools**: Checkov (JSON Plan), [OPA](https://www.openpolicyagent.org/) (Rego laws).
 
-#### 📈 CI/CD Pipeline Flow
+#### 📈 CI/CD Pipeline Flow (Parallel Architecture)
 ```mermaid
 graph LR
-    A[Developer opens PR] --> B[GitHub Actions runs Static Analysis]
-    B --> C[Terragrunt generates Plan]
-    C --> D[OPA/Conftest Policy Gate]
-    D --> E[Apply to dev environment]
-    E --> F["Observability (Prometheus/Grafana)"]
-    F --> G["Manual Approval → prod"]
+    PR[Developer opens PR] --> SA[Static Analysis]
+    PR --> PD[Plan: Dev]
+    PR --> PP[Plan: Prod]
+
+    PD --> CD[Cost Analysis: Dev]
+    PD --> SD[Security & Gov: Dev]
+
+    PP --> CP[Cost Analysis: Prod]
+    PP --> SP[Security & Gov: Prod]
+
+    CD & SD --> AD[Apply: Dev]
+    CP & SP --> AP[Apply: Prod]
+
+    AD --> AP
 ```
 
 > **Note:** All architecture and flow diagrams use a flat, monochrome style for visual consistency.
 
-#### 1️⃣ Parallel Planning
-Simultaneous planning across all environment modules ensures rapid engineering feedback and catches cross-module dependencies early, following [Gruntwork's Production-Grade Patterns](https://terragrunt.gruntwork.io/docs/features/execute-terraform-commands-on-multiple-modules-at-once/).
+#### 1️⃣ Parallel Execution Strategy
+The pipeline explicitly strips away sequential constraints (e.g., waiting for static analysis) to allow `dev` and `prod` planning to happen **simultaneously**. Security and cost gates also run in parallel immediately following the plan, ensuring lightning-fast developer feedback loops.
 
 #### 2️⃣ Automated PR Cost Auditing
 The pipeline posts a consolidated report to the PR using [Infracost](https://www.infracost.io/). Below is a high-fidelity representation:
@@ -123,10 +131,11 @@ Project: .../compute/eks/tfplan.json
 
 Every Pull Request automatically triggers a comprehensive audit across all environments. This ensures 100% visibility into cost impacts before code reaches production.
 
-### 🛡️ Automated Quality Gates
+### 🛡️ Automated Quality Gates (Strict Blocking)
 *   **Cost Estimation (Infracost)**: High-fidelity monthly cost impact per environment.
 *   **Change Auditing (tf-summarize)**: Human-readable tables of every resource being Added, Deleted, or Modified.
-*   **Security Guardrails**: Automated Checkov and OPA (Open Policy Agent) scans run on every plan.
+*   **Hard Security Gates**: Automated Checkov and Trivy scans return `exit code 1` on High/Critical vulnerabilities, strictly blocking deployment.
+*   **Signal-to-Noise Focus**: Upstream community modules are explicitly ignored, and dynamic KMS key evaluation errors are suppressed, ensuring developers only see actionable security alerts.
 
 ### 📝 Sample PR Report
 The pipeline posts a consolidated report for each environment (**dev** and **prod**) to the PR conversation.

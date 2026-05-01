@@ -54,5 +54,12 @@ We use **Repository Variables** instead of Environment Variables for the Role AR
 
 ---
 
+## 🛠️ Toolchain & CI/CD Architecture
+The CI/CD pipeline relies on a custom, pre-packaged Docker container (`ghcr.io/ok-karthik/infrastructure-toolchain`) to ensure absolute consistency across all runs.
+*   **Node.js 24 Standard**: All internal GitHub Actions (`checkout`, `upload-artifact`, etc.) have been modernized to use Node.js 24, permanently resolving runtime deprecation warnings.
+*   **Runner Compatibility**: To prevent `EACCES` (Permission Denied) errors when the GitHub runner writes to the workspace (`/__w/_temp`), the container runs with explicit root privileges (`options: --user root` in the workflow) while the underlying image is highly optimized with `--no-install-recommends`.
+
+---
+
 ## 🔐 Security Note
 The OIDC trust is strictly scoped to this specific GitHub repository. This follows the **Principle of Least Privilege**, ensuring that only authorized CI/CD runs can modify your production infrastructure.
