@@ -67,7 +67,7 @@ jobs:
         run: find ${{ inputs.working_directory }} -name "tfplan.json"
 
       - name: "Upload Plans"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: "plans-${{ inputs.environment }}"
           path: "${{ inputs.working_directory }}/**/tfplan.json"
@@ -93,13 +93,13 @@ jobs:
       security-events: write
     steps:
       - name: "Git Checkout"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: "Setup Platform"
         uses: ./.github/actions/setup-platform
 
       - name: "Download Plans"
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: "plans-${{ inputs.environment }}"
           path: plans
