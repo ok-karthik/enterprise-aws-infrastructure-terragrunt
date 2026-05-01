@@ -1,5 +1,5 @@
 # Global ARGs for multi-stage support
-ARG TRIVY_VERSION=0.59.1
+ARG TRIVY_VERSION=0.70.0
 
 # 1. Define Trivy source stage (supports variables)
 FROM public.ecr.aws/aquasecurity/trivy:${TRIVY_VERSION} AS trivy_source
