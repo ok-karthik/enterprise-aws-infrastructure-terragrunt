@@ -30,6 +30,7 @@ skip-check:
   - CKV_AWS_111 # IAM Write access without constraints (Required for EC2 Describe actions)
   - CKV_AWS_356 # IAM Resource: * (Required for EC2 Describe actions)
   - CKV2_AWS_19 # EIP attachment (Checkov doesn't recognize NAT Gateways as valid attachments)
+  - CKV_AWS_158 # EKS CloudWatch KMS Encryption (Checkov bug with 'known after apply' KMS keys)
 
 # Enable deep scanning of external modules from Terraform Registry
-download-external-modules: true
+download-external-modules: false

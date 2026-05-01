@@ -67,8 +67,8 @@ module "eks" {
   create_kms_key          = true
   enable_kms_key_rotation = true
 
-  # Explicitly enable secret encryption (Resolves AVD-AWS-0039)
-  encryption_config = {
-    resources = ["secrets"]
-  }
+  # (Secrets are automatically encrypted by the module when create_kms_key is true)
+
+  # --- SECURITY: Encrypt CloudWatch Log Group (Resolves CKV_AWS_158) ---
+  cloudwatch_log_group_kms_key_id = module.eks.kms_key_arn
 }

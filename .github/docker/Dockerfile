@@ -7,7 +7,7 @@ FROM public.ecr.aws/aquasecurity/trivy:${TRIVY_VERSION} AS trivy_source
 # --- TOOLCHAIN BUILDER ---
 FROM debian:bookworm-slim AS builder
 
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     unzip \
     ca-certificates \
@@ -62,7 +62,7 @@ LABEL org.opencontainers.image.source="https://github.com/ok-karthik/enterprise-
 LABEL org.opencontainers.image.description="Enterprise Infrastructure Toolchain (Terraform, Terragrunt, TFLint, Conftest)"
 
 # Install runtime dependencies
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     jq \
     ca-certificates \
@@ -87,10 +87,15 @@ RUN ARCH=$(uname -m) && \
     rm -rf awscliv2.zip ./aws
 
 # Create a non-root user for security
+RUN useradd -m -s /bin/bash platform && \
+    mkdir -p /workspace && \
+    chown platform:platform /workspace
+
 # Note: We do NOT set 'USER platform' here because GitHub Actions
-# requires root permissions to manage the workspace and temp directories.
-# The 'platform' user is still available for manual/local use.
+# requires root permissions to manage internal workspace and runner files (EACCES).
+# The 'platform' user is available for local or manual use.
 WORKDIR /workspace
+USER root
 
 # Verify installations
 RUN terraform version && \

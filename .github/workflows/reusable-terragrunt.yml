@@ -20,6 +20,7 @@ on:
 permissions:
   id-token: write
   contents: read
+  actions: read
   pull-requests: write
   security-events: write
 
@@ -79,6 +80,7 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/ok-karthik/infrastructure-toolchain:feature-improvements
+      options: --user root
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
@@ -86,6 +88,7 @@ jobs:
     permissions:
       id-token: write
       contents: read
+      actions: read
       pull-requests: write
       security-events: write
     steps:
@@ -107,11 +110,11 @@ jobs:
       - name: "Checkov Security Audit"
         run: |
           PLAN_FILE=$(find plans -name "tfplan.json" | head -n 1)
-          checkov -f "$PLAN_FILE" --config-file .checkov.yaml --output sarif --output-file-path checkov-results-${{ inputs.environment }}.sarif || true
+          checkov -f "$PLAN_FILE" --config-file .checkov.yaml --output cli --output sarif --output-file-path console,checkov-results-${{ inputs.environment }}.sarif
 
       - name: Upload Checkov SARIF results
         uses: github/codeql-action/upload-sarif@v4
-        if: always()
+        if: always() && hashFiles(format('checkov-results-{0}.sarif', inputs.environment)) != ''
         with:
           sarif_file: "checkov-results-${{ inputs.environment }}.sarif"
           category: checkov-plan-${{ inputs.environment }}
@@ -128,9 +131,6 @@ jobs:
           PLAN_FILE=$(find plans -name "tfplan.json" | head -n 1)
           echo "🎯 Found Plan File: $PLAN_FILE"
 
-          echo "📊 Printing Table Report for Debugging..."
-          trivy config "$PLAN_FILE" --severity CRITICAL,HIGH --ignorefile plans/.trivyignore --format table
-
           echo "📡 Generating SARIF for GitHub Security Tab..."
           trivy config "$PLAN_FILE" \
             --severity CRITICAL,HIGH \
@@ -138,9 +138,12 @@ jobs:
             --output trivy-results-${{ inputs.environment }}.sarif \
             --ignorefile plans/.trivyignore
 
+          echo "📊 Printing Table Report and enforcing security gate..."
+          trivy config "$PLAN_FILE" --severity CRITICAL,HIGH --ignorefile plans/.trivyignore --format table --exit-code 1
+
       - name: Upload Trivy SARIF results
         uses: github/codeql-action/upload-sarif@v4
-        if: always()
+        if: always() && hashFiles(format('trivy-results-{0}.sarif', inputs.environment)) != ''
         with:
           sarif_file: "trivy-results-${{ inputs.environment }}.sarif"
           category: trivy-plan-${{ inputs.environment }}
