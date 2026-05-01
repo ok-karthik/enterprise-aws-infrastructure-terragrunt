@@ -187,7 +187,8 @@ jobs:
           # 1. Cost Breakdown (CLI only)
           find plans -name "tfplan.json" | while read -r plan; do
             unique_name=$(echo "$plan" | tr '/' '-')
-            infracost breakdown --path "$plan" --format json --out-file "cost-${unique_name}.json"
+            module_name=$(dirname "$plan" | sed 's|plans/||')
+            infracost breakdown --path "$plan" --format json --project-name "$module_name" --out-file "cost-${unique_name}.json"
           done
           infracost output --path "cost-*.json" --format table --out-file /tmp/infracost-table.txt
 
@@ -197,15 +198,20 @@ jobs:
 
           find plans -name "tfplan.json" | while read -r plan; do
             module_name=$(dirname $plan | sed 's|plans/||')
-            echo -e "\n<details><summary><b>📂 Module: ${module_name}</b></summary>\n" >> /tmp/pr-comment.md
-            echo "\`\`\`" >> /tmp/pr-comment.md
-            tf-summarize "$plan" >> /tmp/pr-comment.md
-            echo "\`\`\`" >> /tmp/pr-comment.md
-            echo -e "\n</details>" >> /tmp/pr-comment.md
+            echo "" >> /tmp/pr-comment.md
+            echo "<details><summary><b>📂 Module: ${module_name}</b></summary>" >> /tmp/pr-comment.md
+            echo "" >> /tmp/pr-comment.md
+            tf-summarize -md "$plan" >> /tmp/pr-comment.md
+            echo "" >> /tmp/pr-comment.md
+            echo "</details>" >> /tmp/pr-comment.md
           done
 
           # 3. Append Cost Table
-          echo -e "\n## 💰 Cost Estimate (${{ inputs.environment }})\n\`\`\`\n$(cat /tmp/infracost-table.txt)\n\`\`\`" >> /tmp/pr-comment.md
+          echo "" >> /tmp/pr-comment.md
+          echo "## 💰 Cost Estimate (${{ inputs.environment }})" >> /tmp/pr-comment.md
+          echo "\`\`\`" >> /tmp/pr-comment.md
+          cat /tmp/infracost-table.txt >> /tmp/pr-comment.md
+          echo "\`\`\`" >> /tmp/pr-comment.md
 
       - name: "Post PR Comment"
         if: github.event.pull_request.number != null || github.event_name == 'pull_request'
