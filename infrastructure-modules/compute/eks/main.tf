@@ -66,4 +66,9 @@ module "eks" {
 
   create_kms_key          = true
   enable_kms_key_rotation = true
+
+  # Explicitly enable secret encryption (Resolves AVD-AWS-0039)
+  encryption_config = {
+    resources = ["secrets"]
+  }
 }
