@@ -5,3 +5,6 @@
 **/.terragrunt-cache/
 **/.terragrunt-config-cache/
 .external_modules/
+.DS_Store
+.AppleDouble
+.LSOverride
