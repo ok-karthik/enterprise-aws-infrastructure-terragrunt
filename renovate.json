@@ -14,7 +14,9 @@
     {
       "customType": "regex",
       "description": "Track tool versions in GitHub Actions inputs",
-      "fileMatch": ["^\\.github/actions/.+/action\\.yml$"],
+      "managerFilePatterns": [
+        "/^\\.github/actions/.+/action\\.yml$/"
+      ],
       "matchStrings": [
         "default: '(?<currentValue>[^']*)'\\s+# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)(?: versioning=(?<versioning>\\S+))?"
       ]
@@ -22,7 +24,9 @@
     {
       "customType": "regex",
       "description": "Track tool versions in Dockerfile ARGs",
-      "fileMatch": ["(^|/)Dockerfile$"],
+      "managerFilePatterns": [
+        "/(^|/)Dockerfile$/"
+      ],
       "matchStrings": [
         "ARG\\s+(?:.*?)_VERSION=(?<currentValue>.*)\\s+# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)(?: versioning=(?<versioning>\\S+))?"
       ]
@@ -30,7 +34,9 @@
     {
       "customType": "regex",
       "description": "Track Terragrunt registry modules (tfr:// protocol)",
-      "fileMatch": ["\\.hcl$"],
+      "managerFilePatterns": [
+        "/\\.hcl$/"
+      ],
       "matchStrings": [
         "source\\s*=\\s*\"tfr://registry\\.terraform\\.io/(?<depName>[^/]+/[^/]+/[^/\\?]+)(?://.*?)?\\?version=(?<currentValue>[^\"]+)\""
       ],
