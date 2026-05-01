@@ -67,10 +67,10 @@ graph LR
 
 ## 🤝 Contributing
 
-1️⃣ **Fork the repo**
-2️⃣ **Create a feature branch** (`feat/your-name`)
-3️⃣ **Validate locally**: `tflint --recursive && checkov -d .`
-4️⃣ **Submit a PR**: The 5-stage pipeline runs automatically.
+- 1️⃣ **Fork the repo**
+- 2️⃣ **Create a feature branch** (`feat/your-name`)
+- 3️⃣ **Validate locally**: `tflint --recursive && checkov -d .`
+- 4️⃣ **Submit a PR**: The automated pipeline runs automatically.
 
 ---
 
