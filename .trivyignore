@@ -21,9 +21,13 @@ AWS-0178
 
 # --- Toolchain / Docker ---
 DS-0010      # apt-get recommends (non-critical optimization)
+AVD-DS-0010
 DS-0002      # Root user (required for GitHub Actions runner)
+AVD-DS-0002
 DS-0026      # Healthcheck (not applicable for CLI containers)
+AVD-DS-0026
 DS-0029      # Docker layer optimization (non-critical)
+AVD-DS-0029
 
 # --- Kubernetes (KSV) ---
 # These are suppressed as they relate to default EKS system namespaces or dev-only configurations.

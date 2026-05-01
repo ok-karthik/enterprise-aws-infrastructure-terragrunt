@@ -91,8 +91,11 @@ RUN useradd -m -s /bin/bash platform && \
     mkdir -p /workspace && \
     chown platform:platform /workspace
 
+# Note: We do NOT set 'USER platform' here because GitHub Actions
+# requires root permissions to manage internal workspace and runner files (EACCES).
+# The 'platform' user is available for local or manual use.
 WORKDIR /workspace
-USER platform
+USER root
 
 # Verify installations
 RUN terraform version && \
