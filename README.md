@@ -1,34 +1,54 @@
-# 🏗️ Enterprise AWS Infrastructure (Terragrunt & Terraform)
+# 🏗️ Enterprise AWS Infrastructure Platform (Terragrunt)
 
-[![Terragrunt](https://img.shields.io/badge/Infrastructure-Terragrunt-blue)](https://terragrunt.gruntwork.io/)
-[![Terraform](https://img.shields.io/badge/IaC-Terraform-623CE4)](https://www.terraform.io/)
-[![Security: OPA](https://img.shields.io/badge/Policy-OPA-F7931E)](https://www.openpolicyagent.org/)
+[![Terragrunt](https://img.shields.io/badge/Terragrunt-1.0.3-blue?logo=terraform)](https://terragrunt.gruntwork.io/)
+[![Terraform](https://img.shields.io/badge/Terraform-1.15.1-623CE4?logo=terraform)](https://www.terraform.io/)
+[![Security: OPA](https://img.shields.io/badge/Policy-OPA%2FConftest-F7931E)](https://www.openpolicyagent.org/)
 [![FinOps: Infracost](https://img.shields.io/badge/FinOps-Infracost-0080FF)](https://www.infracost.io/)
 [![Security: Checkov](https://img.shields.io/badge/Security-Checkov-20B2AA)](https://www.checkov.io/)
+[![Security: Trivy](https://img.shields.io/badge/Security-Trivy-1904DA)](https://github.com/aquasecurity/trivy)
+[![Renovate](https://img.shields.io/badge/Deps-Renovate-brightgreen)](https://github.com/renovatebot/renovate)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-A production-grade, multi-environment AWS infrastructure blueprint designed for scalability, security governance, and FinOps efficiency. This project demonstrates **Staff Engineer level patterns** in Infrastructure-as-Code (IaC) management—fully DRY, observable, and automated for high-scale engineering teams.
+A production-grade, multi-environment AWS infrastructure platform built with Terragrunt and Terraform. This project demonstrates **Staff Engineer level patterns** in Infrastructure-as-Code (IaC)—fully DRY, secure, observable, and automated for high-scale engineering teams.
+
+> **Stack:** Terragrunt 1.x · Terraform 1.15 · GitHub Actions · OPA/Conftest · Infracost · Trivy · Checkov · TFLint · RenovateBot · AWS EKS · AWS VPC
+
+---
+
+## 📋 Table of Contents
+
+- [Architecture](#️-project-architecture)
+- [Repository Structure](#-repository-structure)
+- [CI/CD Pipeline](#-the-automated-cicd-pipeline)
+- [Nightly Drift Detection](#-nightly-drift-detection)
+- [Automated Dependency Management](#-automated-dependency-management-renovate)
+- [Security & Governance](#-security--governance)
+- [FinOps & Cost Efficiency](#-finops--cost-efficiency)
+- [Disaster Recovery](#️-disaster-recovery)
+- [Getting Started](#️-getting-started)
+- [Roadmap](#-roadmap-agentic-ai-integration)
 
 ---
 
 ## 🏛️ Project Architecture
 
-This platform follows a **Hierarchical Blueprint Pattern** using Terragrunt. It separates the "Generic Blueprint Library" from the "Live Environment Implementation," ensuring 100% DRY (Don't Repeat Yourself) code.
+This platform follows a **Hierarchical Blueprint Pattern** using Terragrunt. It strictly separates the "Generic Blueprint Library" (`infrastructure-modules`) from the "Live Environment Implementation" (`infrastructure-live`), ensuring 100% DRY (Don't Repeat Yourself) configuration.
 
 ### 🗺️ High-Level Flow
+
 ```mermaid
 graph LR
-    Dev[Developer] -->|Git Push| Git[GitHub Repo]
+    Dev[Developer] -->|Git Push / PR| Git[GitHub Repo]
     Git -->|Trigger| GHA[GitHub Actions]
 
-    subgraph "Parallel Governance"
-    GHA --> Static[Lint & Security]
+    subgraph "Governance Gates"
+    GHA --> Static[Static Analysis]
     GHA --> Plan[Terragrunt Plan]
-    Plan --> Cost[Cost Analysis]
-    Plan --> OPA[OPA Policy Audit]
+    Plan --> Cost[Infracost]
+    Plan --> OPA[OPA Policy]
     end
 
-    Cost & OPA & Static -->|Approval| AWS[AWS Infrastructure]
+    Cost & OPA & Static -->|Protected Merge| AWS[AWS Infrastructure]
 
     subgraph "AWS Ecosystem"
     AWS --> VPC["Network: VPC"]
@@ -36,258 +56,346 @@ graph LR
     AWS --> S3["Storage: S3"]
     AWS --> IAM["Identity: OIDC"]
     end
-
-    style Dev fill:#f9f,stroke:#333,stroke-width:2px
-    style AWS fill:#ff9900,stroke:#232f3e,stroke-width:2px
 ```
 
-### 🧬 Repository Structure
+<p align="center">
+  <img src=".github/assets/enterprise-architecture-blueprint.png" width="850" alt="Enterprise Architecture Blueprint">
+  <br>
+  <i>High-fidelity enterprise architecture blueprint for the platform.</i>
+</p>
+
+---
+
+## 📁 Repository Structure
 
 ```text
 .
-├── infrastructure-modules/      # 📦 Blueprint Library (Reusable Terraform)
-│   ├── network/vpc/            # • Standardized VPC & Subnets
-│   ├── compute/eks/            # • Production-Grade EKS
-│   └── data/s3/                # • Durable Object Storage
+├── .github/
+│   ├── actions/                    # 🧩 Composite Actions (Reusable CI steps)
+│   │   ├── setup-platform/         #   • OIDC auth, region, role assumption
+│   │   └── static-analysis/        #   • TFLint, Trivy, Checkov runner
+│   ├── assets/                     # 🖼️ Documentation images & architecture diagrams
+│   ├── docker/
+│   │   └── Dockerfile              # 🐳 Infrastructure Toolchain image definition
+│   └── workflows/
+│       ├── terragrunt.yml          # 🚀 Main CI/CD orchestrator (PR & Push)
+│       ├── reusable-terragrunt.yml # 🔁 Reusable Plan/Apply workflow per environment
+│       ├── drift-detection.yml     # 🔍 Nightly self-healing drift monitor
+│       ├── destroy.yml             # 🌪️ Manual teardown workflow (with safety gate)
+│       └── publish-toolchain.yml   # 🐳 Builds & publishes the toolchain image
 │
-├── infrastructure-live/         # 🚀 Deployment Hub (Environment Config)
-│   ├── _envcommon/             # 🧬 Centralized DRY inheritance layer
-│   ├── dev/ (Regions)          # Sandbox Environment
-│   │   └── eu-central-1/
-│   │       ├── network/vpc/    #   - terragrunt.hcl
-│   │       └── compute/eks/    #   - terragrunt.hcl
-│   └── prod/ (Regions)         # Production Environment
-│       └── eu-central-1/
-│           ├── network/vpc/    #   - terragrunt.hcl
-│           └── compute/eks/    #   - terragrunt.hcl
+├── infrastructure-bootstrap/       # 🗝️ Day-0 Foundation (OIDC role & S3 state)
+├── infrastructure-live/            # 🚀 Live Environment Configuration
+│   ├── root.hcl                    #   • Global Terragrunt root config
+│   ├── _envcommon/                 #   • DRY inheritance: shared configs
+│   ├── dev/eu-central-1/           #   • Dev environment modules
+│   │   ├── network/vpc/
+│   │   └── compute/eks/
+│   ├── prod/eu-central-1/          #   • Prod environment modules
+│   │   ├── network/vpc/
+│   │   └── compute/eks/
+│   └── scripts/
+│       ├── smoke-test.sh           #   • Local pre-commit validation suite
+│       ├── generate-module.sh      #   • Scaffolds new modules
+│       └── check-licenses.sh       #   • Open-source license compliance
 │
-└── infrastructure-bootstrap/   # 🗝️ Foundation (OIDC & Remote State Hub)
+├── infrastructure-modules/         # 📦 Blueprint Library (Reusable Terraform)
+│   ├── network/vpc/                #   • Hardened VPC, NACLs, Flow Logs
+│   └── compute/eks/                #   • Production-grade EKS with KMS encryption
+│
+├── policies/terraform/             # ⚖️ OPA Rego Policy Library
+├── renovate.json                   # 🤖 Automated dependency management config
+├── GOVERNANCE.md                   # 📜 Tagging, IAM, and compliance rules
+├── FINOPS.md                       # 💰 Cost optimization strategy
+└── DISASTER_RECOVERY.md            # 🚑 Runbooks for failure modes and rollbacks
 ```
 
 ---
 
-## 🤝 Contributing
+## 🚀 The Automated CI/CD Pipeline
 
-- 1️⃣ **Fork the repo**
-- 2️⃣ **Create a feature branch** (`feat/your-name`)
-- 3️⃣ **Validate locally**: `tflint --recursive && checkov -d .`
-- 4️⃣ **Submit a PR**: The automated pipeline runs automatically.
+The platform's core is a sophisticated **multi-stage pipeline** managed via GitHub Actions. It combines **Parallel Execution**, **Reusable Workflows**, and **Composite Actions** to deliver fast, safe, and observable deployments.
 
----
+### 📈 Pipeline Flow
 
-## 🚀 The Automated Platform (CI/CD)
-
-The core of this platform is a sophisticated **5-Stage Pipeline** that transitions infrastructure from code to production with multiple security and cost gates.
-
-### 🏗️ Dual-Gate Pipeline Architecture
-The platform utilizes a **Modular CI/CD Orchestration** model built on GitHub Reusable Workflows and Composite Actions.
-
-> **Outcome:** CI/CD pipeline now supports **parallel environment planning and decoupled security/cost scanning**, cutting the time from PR to Prod from **3 days → 3 minutes**.
-
-1.  **Gate 1: High-Speed Static Analysis (HCL)**
-    *   **Goal**: Immediate feedback for developers.
-    *   **Tools**: [TFLint](https://github.com/terraform-linters/tflint) (Quality), [Trivy](https://github.com/aquasecurity/trivy) (IaC Security), [Checkov](https://github.com/bridgecrewio/checkov) (Basic HCL misconfigs).
-2.  **Gate 2: High-Precision Governance (JSON)**
-    *   **Goal**: Final safety check before deployment.
-    *   **Tools**: Checkov (JSON Plan), [OPA](https://www.openpolicyagent.org/) (Rego laws).
-
-#### 📈 CI/CD Pipeline Flow (Parallel Architecture)
 ```mermaid
 graph LR
-    PR[Developer opens PR] --> SA[Static Analysis]
-    PR --> PD[Plan: Dev]
-    PR --> PP[Plan: Prod]
+    PR[PR Opened] --> SA[🔍 Static Analysis]
+    PR --> PD[📝 Plan: Dev]
+    PR --> PP[📝 Plan: Prod]
 
-    PD --> CD[Cost Analysis: Dev]
-    PD --> SD[Security & Gov: Dev]
+    PD --> CD[💰 Cost: Dev]
+    PD --> GD[⚖️ Governance: Dev]
 
-    PP --> CP[Cost Analysis: Prod]
-    PP --> SP[Security & Gov: Prod]
+    PP --> CP[💰 Cost: Prod]
+    PP --> GP[⚖️ Governance: Prod]
 
-    CD & SD --> AD[Apply: Dev]
-    CP & SP --> AP[Apply: Prod]
+    CD & GD --> AD[🚀 Apply: Dev]
+    CP & GP --> AP[🚀 Apply: Prod]
 
     AD --> AP
 ```
 
-> **Note:** All architecture and flow diagrams use a flat, monochrome style for visual consistency.
+<p align="center">
+  <img src=".github/assets/cicd-pipeline-flow.png" width="850" alt="CI/CD Pipeline Flow">
+  <br>
+  <i>The multi-stage pipeline with parallel governance gates and sequential environment promotion.</i>
+</p>
 
-#### 1️⃣ Parallel Execution Strategy
-The pipeline explicitly strips away sequential constraints (e.g., waiting for static analysis) to allow `dev` and `prod` planning to happen **simultaneously**. Security and cost gates also run in parallel immediately following the plan, ensuring lightning-fast developer feedback loops.
+### 🔑 Key Pipeline Features
 
-#### 2️⃣ Automated PR Cost Auditing
-The pipeline posts a consolidated report to the PR using [Infracost](https://www.infracost.io/). Below is a high-fidelity representation:
+#### 1️⃣ Gate 1: High-Speed Static Analysis
+Runs in parallel with the plan stages to provide immediate feedback:
+- **[TFLint](https://github.com/terraform-linters/tflint)**: HCL quality and AWS provider best-practices.
+- **[Trivy](https://github.com/aquasecurity/trivy)**: IaC misconfigurations scanned against CVE databases.
+- **[Checkov](https://www.checkov.io/)**: Baseline compliance checks against CIS benchmarks.
+
+#### 2️⃣ Gate 2: Cost Governance (Infracost)
+Every PR automatically posts an itemized cost breakdown using **[Infracost](https://www.infracost.io/)**.
 
 ```text
 Project: .../compute/eks/tfplan.json
- Name                                             Monthly Qty  Unit         Monthly Cost
- module.eks.aws_eks_cluster.this[0]                       730  hours              $73.00
- ... [view full report in PR]
- OVERALL TOTAL                                                                    $92.19
+ Name                                              Monthly Qty  Unit     Monthly Cost
+ module.eks.aws_eks_cluster.this[0]                        730  hours          $73.00
+ ─────────────────────────────────────────────────────────────────────────────────────
+ OVERALL TOTAL                                                                 $92.19
 ```
 
----
+#### 3️⃣ Gate 3: High-Precision Governance (OPA)
+After planning, the pipeline validates the **Terraform plan JSON** (not just HCL) against strict **OPA Rego policies**:
+- **🏷️ Mandatory Tagging**: Enforces `Service`, `Environment`, `Project`, and `ManagedBy` tags on all resources. Missing tags fail the pipeline.
+- **💻 Instance Modernization**: Blocks legacy AWS instance families (e.g., `t2.*`).
 
-## 📊 PR-Driven FinOps & Governance
-
-Every Pull Request automatically triggers a comprehensive audit across all environments. This ensures 100% visibility into cost impacts before code reaches production.
-
-### 🛡️ Automated Quality Gates (Strict Blocking)
-*   **Cost Estimation (Infracost)**: High-fidelity monthly cost impact per environment.
-*   **Change Auditing (tf-summarize)**: Human-readable tables of every resource being Added, Deleted, or Modified.
-*   **Hard Security Gates**: Automated Checkov and Trivy scans return `exit code 1` on High/Critical vulnerabilities, strictly blocking deployment.
-*   **Signal-to-Noise Focus**: Upstream community modules are explicitly ignored, and dynamic KMS key evaluation errors are suppressed, ensuring developers only see actionable security alerts.
-
-### 📝 Sample PR Report
-The pipeline posts a consolidated report for each environment (**dev** and **prod**) to the PR conversation.
+#### 4️⃣ Manual Approval Gate (Protected Environments)
+`prod` deployments are protected by a **GitHub Environment** that requires explicit manual approval before `apply` proceeds.
 
 <p align="center">
-  <img src=".github/assets/pr-audit.png" width="850" alt="Typical PR audit generated by the pipeline">
+  <img src=".github/assets/github-actions-manual-approval.png" width="850" alt="GitHub Actions Manual Approval Gate">
   <br>
-  <i>Typical PR audit generated by the pipeline – cost impact, security findings, and resource changes in one view.</i>
+  <i>The GitHub Actions manual approval gate for production deployments.</i>
 </p>
 
-<details><summary><b>View Raw Report Structure</b></summary>
+#### 5️⃣ Automated PR Audit Report
+The pipeline posts a full consolidated report to every PR:
 
-#### 📊 Infrastructure Change Summary (dev)
-📂 **Module: compute/eks**
-```text
-+----------+-----------------------------------------------------------+
-|  CHANGE  |                         RESOURCE                          |
-+----------+-----------------------------------------------------------+
-| add (37) | module.eks.aws_eks_cluster.this[0]                        |
-|          | ... [view full]                                           |
-+----------+-----------------------------------------------------------+
-```
-</details>
+<p align="center">
+  <img src=".github/assets/pr-audit.png" width="850" alt="Automated PR audit report">
+  <br>
+  <i>Automated PR audit: cost impact, security findings, and resource changes in one view.</i>
+</p>
 
 ---
 
-## 🔐 Security & Governance
+## 🔍 Nightly Drift Detection
 
-*   **OIDC Authentication**: Zero long-lived AWS keys. All deployments use short-lived, trust-based OIDC tokens (OpenID Connect).
-*   **Least Privilege**: The CI/CD role is strictly scoped to specific IAM actions and repository branches.
+A dedicated **nightly workflow** (`drift-detection.yml`) monitors both `dev` and `prod` environments in **parallel** using a matrix strategy. It compares live AWS infrastructure against the Terraform state/code and automatically manages GitHub Issues as its alerting mechanism.
 
-### ⚖️ Governance & Policy (OPA)
-We use **Open Policy Agent (OPA)** via **Conftest** to enforce custom organizational "laws."
+### 🌊 Self-Healing Issue Lifecycle
 
-> **Impact:** While Checkov scans for baseline CVEs, OPA ensures custom Org-level laws like **100% mandatory tagging** and **0% t2.* instance usage**, significantly reducing policy drift.
+```mermaid
+flowchart LR
+    A[Nightly Run 6AM UTC] --> B{Drift Detected?}
+    B -- Yes --> C{Open Issue Exists?}
+    C -- No --> D[🚨 Create New Issue]
+    C -- Yes --> E[💬 Comment: Still drifting]
+    B -- No --> F{Open Issue Exists?}
+    F -- Yes --> G[✅ Comment & Auto-Close Issue]
+    F -- No --> H[👍 Log: All clear]
+```
 
-*   **🏷️ Mandatory Tagging**: Enforces `Service`, `Environment`, and `Project` tags on all resources.
-*   **💻 Instance Modernization**: Prevents the use of legacy AWS instance types (e.g., `t2.*`).
-*   **🔌 Sequential Dependency Gates**: Automated validation using `terragrunt run --all` to respect the infrastructure dependency graph.
+**Key behaviours:**
+- **Deduplication**: Never creates duplicate issues. Each environment (`dev`/`prod`) has at most one open drift issue.
+- **Persistence Tracking**: Comments on the existing issue each day drift remains, creating an audit trail.
+- **Auto-Remediation**: When drift is resolved (e.g., after a deploy), the workflow automatically closes the issue with a resolution message—no manual cleanup required.
+- **Environment Isolation**: Each environment uses its own IAM role (`AWS_DEV_ROLE_ARN` / `AWS_PROD_ROLE_ARN`) for independent, isolated checks.
+
+> **Required Repository Variables**: `AWS_DEV_ROLE_ARN`, `AWS_PROD_ROLE_ARN`, `AWS_REGION`
 
 ---
 
 ## 🤖 Automated Dependency Management (Renovate)
 
-The platform is designed for **Zero-Touch Maintenance**. We use [RenovateBot](https://github.com/renovatebot/renovate) with custom regex managers to automatically track and update infrastructure dependencies across all `.hcl` files, GitHub Actions, and Dockerfiles.
+The platform uses **[RenovateBot](https://github.com/renovatebot/renovate)** with custom regex managers for **zero-touch maintenance** of all infrastructure dependencies.
 
-### 🛡️ Automated Lifecycle & Governance
-*   **Terragrunt Module Tracking**: Custom managers track `tfr://` registry versions for all infrastructure modules.
-*   **Security Toolchain**: Automatically keeps Trivy, TFLint, and Checkov up to date.
-*   **Non-Major Grouping**: Patch and minor updates are consolidated into single "Infrastructure Dependencies" PRs to reduce noise.
+### What Renovate Tracks Automatically
+
+| Dependency Type | Source | Example |
+| :--- | :--- | :--- |
+| Terraform Registry Modules | `.hcl` files (`tfr://` protocol) | `terraform-aws-modules/vpc/aws` |
+| Toolchain Binaries | `Dockerfile` ARGs | `TERRAFORM_VERSION`, `TERRAGRUNT_VERSION` |
+| GitHub Actions | `action.yml` files | `actions/checkout`, `docker/build-push-action` |
+| Composite Action Inputs | `.github/actions/*/action.yml` | `TFLint`, `Infracost` versions |
+
+### Update Strategy
+
+- **Non-Major Updates**: Patch and minor bumps are grouped into a single "Infrastructure Dependencies" PR to reduce noise.
+- **Major Updates**: Separated into individual PRs for explicit review.
+- **Dependency Dashboard**: A GitHub Issue acts as a central control panel to see all pending updates and manually trigger PRs.
+- **Scheduling**: Runs on Berlin timezone (`Europe/Berlin`), respecting business hours.
 
 <p align="center">
-  <img src=".github/assets/renovate-dashboard.png" width="280" alt="Renovate Dashboard">
+  <img src=".github/assets/renovate-dashboard.png" width="280" alt="Renovate Dependency Dashboard">
   <img src=".github/assets/renovate-automated-prs.png" width="280" alt="Automated PR List">
-  <img src=".github/assets/renovate-pr-details.png" width="280" alt="Detailed PR View">
+  <img src=".github/assets/renovate-pr-details.png" width="280" alt="Detailed PR View with Release Notes">
   <br>
-  <i>The Renovate lifecycle: Centralized dashboard, automated PR grouping, and high-fidelity PR details with release notes.</i>
+  <i>The Renovate lifecycle: centralized dashboard → automated PR grouping → high-fidelity PR details with release notes.</i>
 </p>
 
 ---
 
+## 🔐 Security & Governance
 
-The platform has transitioned from a "Reporting" state to a **"Remediated at Source"** architecture. We enforce production-grade security defaults directly within the infrastructure modules to minimize the attack surface.
+### 🪪 Zero-Key OIDC Authentication
+No long-lived AWS credentials exist anywhere. All CI/CD pipeline runs use **GitHub Actions OIDC** to assume short-lived IAM roles scoped to the specific repository and branch.
 
-### 📦 S3 Remote State & Concurrency (Day 2 Ops)
-Managing state at scale requires strict concurrency controls and disaster recovery mechanisms:
-*   **DynamoDB State Locking**: Terragrunt natively leverages DynamoDB to lock the state file during execution, preventing race conditions and concurrent apply corruption.
-*   **S3 Versioning**: All Terragrunt state buckets have **Versioning strictly enabled** for disaster recovery and point-in-time state rollback.
-*   **Public Access Block (BPA)**: Strict enforcement of S3 Block Public Access (ACLs, Policies, and Bucket-level) to prevent data leakage.
-*   **Server-Side Encryption**: 100% of state data is encrypted at rest using AES-256.
+### 🛡️ Multi-Layer Security Scanning
 
-### 🌐 VPC Perimeter Security (Zero-Trust)
-*   **Default NACL Management**: Explicit management of the default Network ACL to replace "Allow-All" defaults with restricted ingress/egress rules.
-*   **Security Group Hardening**: The default VPC Security Group is managed as a "Black Hole" (Deny-All) to ensure no unmanaged traffic enters the network.
+| Tool | Stage | Scope |
+| :--- | :--- | :--- |
+| **TFLint** | Pre-Plan (HCL) | Best-practice violations, deprecated arguments |
+| **Trivy** | Pre-Plan (HCL) | IaC misconfigurations, CVE database checks |
+| **Checkov** | Post-Plan (JSON) | CIS benchmark, deep plan-level analysis |
+| **OPA/Conftest** | Post-Plan (JSON) | Custom Org-level Rego policies |
 
-### ☸️ EKS Compute Hardening
-*   **Secrets Encryption**: Enabled KMS-based encryption for all Kubernetes Secrets at rest using dedicated, rotating AWS KMS keys (`AWS-0039`).
-*   **Control Plane Logging**: Full audit trails for API server, Authenticator, and Controller Manager are enabled by default.
+All scanners are configured as **strict blocking gates** — any High or Critical finding returns `exit code 1` and halts the pipeline.
 
----
+### 📦 Module-Level Security Hardening
 
-## 💰 FinOps & Efficiency
+Security defaults are enforced at the source code level in `infrastructure-modules/`, not just in CI:
 
-*   **Spot Instance Savings**: In the `dev` environment, EKS node groups use Spot capacity.
-    *   **Outcome:** Spot usage cut dev-environment spend from **$1,200 → $180/month (-85%)**.
-*   **GP3 Storage Mandate**: Automated governance ensures all EBS volumes are provisioned as `gp3`, optimizing for both performance and price.
-*   **Lifecycle Management**: A dedicated **Manual Teardown Workflow** allows for surgical removal of resources in non-production environments.
+**VPC (`network/vpc`)**
+- Default NACL replaced with explicit Deny-All ingress rules.
+- Default Security Group managed as a "Black Hole" (zero ingress/egress).
+- **VPC Flow Logs** enabled with CloudWatch integration for full network audit trails.
 
----
+**EKS (`compute/eks`)**
+- Kubernetes Secrets encrypted at rest via dedicated **AWS KMS keys**.
+- Control Plane Logging enabled for: API Server, Authenticator, Controller Manager, Audit.
 
-## 🌪️ Disaster Recovery & Business Continuity
+**S3 State Backend**
+- **DynamoDB Locking**: Prevents concurrent apply corruption.
+- **S3 Versioning**: Enables point-in-time state rollback.
+- **Block Public Access**: Enforced at both bucket and account level.
+- **Server-Side Encryption**: AES-256 for all state data at rest.
 
-The platform is designed with a **Recovery Point Objective (RPO)** of near-zero and a fast **Recovery Time Objective (RTO)** through automated orchestration.
-
-### 🧪 Automated Smoke Tests
-We provide a dedicated [smoke-test.sh](infrastructure-live/scripts/smoke-test.sh) that validates the platform's readiness.
-*   **HCL Integrity**: Ensures all code is syntactically valid.
-*   **Dependency Graph**: Validates that Terragrunt can resolve all module relationships.
-*   **Compliance Check**: Ensures 100% regional and environmental naming compliance.
+For the complete tagging policy and branch protection rules, see [GOVERNANCE.md](GOVERNANCE.md).
 
 ---
 
-## 🤖 Coming Up: Agentic AI Integration (Roadmap)
+## 💰 FinOps & Cost Efficiency
 
-To push the boundaries of automated DevOps, the next phase of this platform focuses on integrating **AI Agents** directly into the CI/CD pipeline using Python and Open-Source/Free-Tier LLMs.
+| Strategy | Impact |
+| :--- | :--- |
+| **Spot Instance Orchestration** (Dev EKS) | Dev spend: **$1,200 → $180/month (-85%)** |
+| **GP3 Storage Mandate** (OPA Policy) | Enforces optimal EBS performance/cost ratio |
+| **Manual Teardown Workflow** | Surgical destruction of non-prod resources on demand |
+| **Infracost PR Gate** | 100% cost visibility before any change reaches production |
 
-*   **Security Remediation Agent**: An AI agent that analyzes security vulnerabilities caught by Checkov or Trivy, identifies the missing code, and suggests the exact remediation or suppression block.
-*   **Automated Drift Response Agent**: An AI agent that analyzes the output of the nightly drift detection workflow and automatically generates a Pull Request with the relevant code or state manipulation commands needed to resolve the drift.
-*   **Natural Language to IaC**: An experimental agent capable of turning plain-text infrastructure requests (e.g., "Give me a highly available RDS Postgres instance") into fully compliant Terragrunt/Terraform code, directly integrated into the repository workflow.
+For full details, see [FINOPS.md](FINOPS.md).
+
+---
+
+## 🚑 Disaster Recovery
+
+The platform follows a **"Roll-Forward, Never Rollback"** philosophy, backed by S3 state versioning and DynamoDB locking.
+
+Key runbooks documented in [DISASTER_RECOVERY.md](DISASTER_RECOVERY.md):
+- **Apply Fails Halfway**: How partial state is handled safely.
+- **Locked State Files**: How to break a DynamoDB lock after a crashed runner.
+- **State Corruption**: How to restore a known-good state version from S3 versioning.
+- **Manual State Surgery**: Using `terragrunt state rm` and `import` for stuck resources.
+
+### 🧪 Automated Smoke Test
+A pre-commit hook runs [`smoke-test.sh`](infrastructure-live/scripts/smoke-test.sh) locally before every commit to validate:
+1. **Compliance**: Regional naming and environment structure.
+2. **HCL Formatting**: `terraform fmt` check across all directories.
+3. **Module Init & Validate**: Automatically re-initializes modules after version changes (handles Renovate bumps).
+4. **TFLint**: Full recursive lint pass across all modules.
 
 ---
 
 ## 🛠️ Getting Started
 
 ### 📋 Prerequisites
-*   [Terraform](https://developer.hashicorp.com/terraform/downloads) (v1.14.3+)
-*   [Terragrunt](https://terragrunt.gruntwork.io/docs/getting-started/quick-start/) (v1.0.2+)
-*   [TFLint](https://github.com/terraform-linters/tflint)
-*   [Checkov](https://www.checkov.io/)
+
+| Tool | Version | Install |
+| :--- | :--- | :--- |
+| Terraform | `>= 1.15.1` | `brew install terraform` |
+| Terragrunt | `>= 1.0.3` | `brew install terragrunt` |
+| TFLint | `>= 0.62.0` | `brew install tflint` |
+| Trivy | `>= 0.70.0` | `brew install trivy` |
+| Conftest | `>= 0.68.2` | `brew install conftest` |
+| AWS CLI | `v2` | [Official Docs](https://docs.aws.amazon.com/cli/latest/userguide/install-cliv2.html) |
+| pre-commit | latest | `brew install pre-commit` |
 
 ### 💻 Local Development Setup
-1.  **Clone the Repo**:
-    ```bash
-    git clone https://github.com/ok-karthik/enterprise-aws-infrastructure-terragrunt.git
-    cd enterprise-aws-infrastructure-terragrunt
-    ```
-2.  **Bootstrap**: See [infrastructure-bootstrap/README.md](infrastructure-bootstrap/README.md) for initial Day-0 setup.
 
-## 🔧 Local Validation
 ```bash
-# Install / validate tools
-tflint --init
-tflint --recursive
-checkov -d .
+# 1. Clone the repository
+git clone https://github.com/ok-karthik/enterprise-aws-infrastructure-terragrunt.git
+cd enterprise-aws-infrastructure-terragrunt
+
+# 2. Install pre-commit hooks (runs smoke-test on every commit)
+pre-commit install
+
+# 3. Run the full validation suite manually
 ./infrastructure-live/scripts/smoke-test.sh
 ```
 
-For deeper reading see the official docs:
-- **OPA policies**: [Official Docs](https://www.openpolicyagent.org/docs/latest/)
-- **Infracost pricing models**: [Official Docs](https://www.infracost.io/docs/)
-- **Terragrunt best-practices**: [Official Docs](https://terragrunt.gruntwork.io/docs/)
+### 🗝️ Day-0 Bootstrap (First-Time Setup)
+
+The `infrastructure-bootstrap/` directory provisions the foundational AWS resources required before any live infrastructure can be deployed:
+- OIDC Identity Provider for GitHub Actions
+- S3 bucket for Terraform remote state
+- DynamoDB table for state locking
+- IAM roles for CI/CD (`github-actions-oidc-role`)
+
+See [infrastructure-bootstrap/README.md](infrastructure-bootstrap/README.md) for the full setup guide.
+
+### 🔧 Local Validation Commands
+
+```bash
+# Lint all HCL
+tflint --init && tflint --recursive
+
+# Security scan
+trivy config .
+
+# Policy check (requires a plan JSON)
+conftest test --policy policies/ <plan.json>
+
+# Scaffold a new module
+./infrastructure-live/scripts/generate-module.sh <module-name>
+```
+
+---
+
+## 🤖 Roadmap: Agentic AI Integration
+
+The next phase integrates **AI Agents** directly into the CI/CD pipeline:
+
+- **🔒 Security Remediation Agent**: Analyzes Checkov/Trivy findings and auto-suggests exact remediation code or suppression blocks.
+- **🌀 Automated Drift Response Agent**: Reads the nightly drift detection output and automatically generates a PR with the code or state commands needed to resolve the drift.
+- **💬 Natural Language to IaC**: An experimental agent translating plain-text requests (e.g., *"Give me a highly available RDS Postgres cluster"*) into fully compliant, tagged Terragrunt configurations.
 
 ---
 
 ## 📚 Related Standards & Inspiration
-This platform is built upon industry-neutral standards for cloud scale:
+
 - [AWS Well-Architected Framework](https://aws.amazon.com/architecture/well-architected/)
-- [CNCF Cloud Native Interactive Landscape](https://landscape.cncf.io/)
-- [GitHub Platform Engineering Playbook](https://github.com/github/platform-samples)
-- [HashiCorp Well-Architected Framework](https://developer.hashicorp.com/terraform/tutorials/best-practices/well-architected-framework)
+- [HashiCorp Terraform Best Practices](https://developer.hashicorp.com/terraform/tutorials/best-practices/well-architected-framework)
+- [Terragrunt Documentation](https://terragrunt.gruntwork.io/docs/)
+- [CNCF Cloud Native Landscape](https://landscape.cncf.io/)
 
 ---
 
-*This platform is maintained as a showcase of senior Infrastructure-as-Code (IaC) patterns. For professional inquiries or pattern discussions, reach out to [ok-karthik](https://github.com/ok-karthik).*
+## 🤝 Contributing
+
+1. **Fork** the repository.
+2. **Create a feature branch**: `git checkout -b feat/your-feature`
+3. **Validate locally**: Pre-commit hooks will run automatically on `git commit`.
+4. **Open a PR**: The full 5-stage pipeline runs automatically.
+
+---
+
+*This platform is maintained as a showcase of senior Infrastructure-as-Code (IaC) patterns and Staff Engineer-level GitOps practices. For professional inquiries, reach out to [ok-karthik](https://github.com/ok-karthik).*
