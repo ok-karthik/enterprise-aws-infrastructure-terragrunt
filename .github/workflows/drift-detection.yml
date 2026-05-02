@@ -61,15 +61,61 @@ jobs:
           fi
         working-directory: infrastructure-live/${{ matrix.environment }}
 
-      - name: "Alert on Drift (Create GitHub Issue)"
-        if: env.DRIFT_DETECTED == 'true'
-        uses: actions/github-script@v9
+      - name: "Alert or Resolve Drift Issue"
+        if: always() && steps.plan.outcome == 'success'
+        uses: actions/github-script@v7
         with:
           script: |
-            github.rest.issues.create({
+            const env = '${{ matrix.environment }}';
+            const title = `🚨 Infrastructure Drift Detected: ${env}`;
+            const driftDetected = process.env.DRIFT_DETECTED === 'true';
+
+            // 1. Search for existing open issues with this title
+            const { data: issues } = await github.rest.issues.listForRepo({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              title: "🚨 Infrastructure Drift Detected: ${{ matrix.environment }}",
-              body: "The nightly drift detection workflow found that the live infrastructure in `${{ matrix.environment }}` does not match the Terraform state/code.\n\nPlease review the [Action Logs](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) to see the exact resources that have drifted and remediate immediately.",
-              labels: ["bug", "security", "drift", "${{ matrix.environment }}"]
-            })
+              state: 'open',
+              labels: 'drift'
+            });
+
+            const existingIssue = issues.find(i => i.title === title);
+
+            if (driftDetected) {
+              if (existingIssue) {
+                console.log(`An open drift issue already exists for ${env}: #${existingIssue.number}. Updating with persistence comment.`);
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: existingIssue.number,
+                  body: `🔍 **Update**: Drift is still detected in \`${env}\` as of ${new Date().toUTCString()}. Please remediate as soon as possible.`
+                });
+              } else {
+                console.log(`No open drift issue found for ${env}. Creating new one.`);
+                await github.rest.issues.create({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  title: title,
+                  body: `The nightly drift detection workflow found that the live infrastructure in \`${env}\` does not match the Terraform state/code.\n\nPlease review the [Action Logs](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) to see the exact resources that have drifted and remediate immediately.`,
+                  labels: ["bug", "security", "drift", env]
+                });
+              }
+            } else {
+              // Drift is NOT detected (success case)
+              if (existingIssue) {
+                console.log(`Drift resolved for ${env}! Closing issue #${existingIssue.number}.`);
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: existingIssue.number,
+                  body: `✅ **Resolved**: The latest drift detection run confirmed that the infrastructure in \`${env}\` is now back in sync with the code. Closing this issue automatically.`
+                });
+                await github.rest.issues.update({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: existingIssue.number,
+                  state: 'closed'
+                });
+              } else {
+                console.log(`No drift detected in ${env} and no open issues to close. All good!`);
+              }
+            }
