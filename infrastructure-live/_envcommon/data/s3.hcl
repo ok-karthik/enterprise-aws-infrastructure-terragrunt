@@ -1,7 +1,7 @@
 # Common configuration for S3 modules.
 
 terraform {
-  source = "tfr://registry.terraform.io/terraform-aws-modules/s3-bucket/aws?version=5.12.0"
+  source = "tfr://registry.terraform.io/terraform-aws-modules/s3-bucket/aws?version=5.13.0"
 }
 
 locals {

@@ -10,7 +10,7 @@ terraform {
 
 module "eks" {
   source  = "terraform-aws-modules/eks/aws"
-  version = "21.19.0"
+  version = "21.20.0"
 
   # --- v21 API: 'cluster_name' was renamed to 'name', 'cluster_version' → 'kubernetes_version' ---
   name               = var.cluster_name
