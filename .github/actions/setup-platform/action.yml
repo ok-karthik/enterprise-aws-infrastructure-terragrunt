@@ -13,7 +13,7 @@ inputs:
   tflint_version:
     description: 'Version of TFLint to install'
     required: false
-    default: 'v0.62.0' # renovate: datasource=github-releases depName=terraform-linters/tflint
+    default: 'v0.62.1' # renovate: datasource=github-releases depName=terraform-linters/tflint
   aws_region:
     description: 'AWS Region for credentials'
     required: false
