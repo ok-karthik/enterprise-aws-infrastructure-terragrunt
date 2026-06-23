@@ -1,0 +1,29 @@
+name: CI Pipeline Healer
+on:
+  workflow_run:
+    workflows: ["Terragrunt CI/CD"] # Triggers when your main validation pipeline runs
+    types: [completed]
+
+jobs:
+  heal:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }} # Run ONLY if it failed
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+
+      - name: Install Dependencies
+        run: |
+          pip install openai requests
+
+      - name: Run Healer Agent
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GEMINI_API_KEY: ${{ secrets.GROQ_API_KEY }} # Use the free Gemini/Groq key
+          FAILED_RUN_ID: ${{ github.event.workflow_run.id }}
+        run: python scripts/healer_runner.py
