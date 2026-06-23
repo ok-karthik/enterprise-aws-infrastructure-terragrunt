@@ -24,6 +24,6 @@ jobs:
       - name: Run Healer Agent
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GEMINI_API_KEY: ${{ secrets.GROQ_API_KEY }} # Use the free Gemini/Groq key
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}  # Changed to GROQ_API_KEY
           FAILED_RUN_ID: ${{ github.event.workflow_run.id }}
-        run: python scripts/healer_runner.py
+        run: python .agents/scripts/healer_runner.py  # Changed to .agents/scripts/
