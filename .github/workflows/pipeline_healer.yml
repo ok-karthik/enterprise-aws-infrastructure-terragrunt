@@ -15,6 +15,11 @@ jobs:
           ref: ${{ github.event.workflow_run.head_branch }}
           repository: ${{ github.event.workflow_run.head_repository.full_name }}
 
+      - name: Use Latest Healer Code from Main
+        run: |
+          git fetch origin main
+          git checkout origin/main -- .agents
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
