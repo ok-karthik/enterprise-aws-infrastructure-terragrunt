@@ -61,15 +61,23 @@ def download_failed_logs(run_id: str, repo: str, token: str) -> str:
     zip_file_bytes = io.BytesIO(response.content)
     log_contents = []
 
+    error_keywords = ["error", "fail", "exit status", "violat", "deny", "exception"]
+
     with zipfile.ZipFile(zip_file_bytes, 'r') as zip_ref:
         for file_info in zip_ref.infolist():
-            # Skip metadata files, focus on job log files (.txt)
+            # Skip folders or metadata logs, only analyze main job text logs
             if file_info.filename.endswith(".txt") and not "/" in file_info.filename:
                 with zip_ref.open(file_info.filename) as f:
                     content = f.read().decode('utf-8', errors='ignore')
-                    # Keep only the last 300 lines of each log to stay within token limits
-                    lines = content.splitlines()[-300:]
-                    log_contents.append(f"=== Job Log: {file_info.filename} ===\n" + "\n".join(lines))
+
+                    # Only process logs that contain error keywords
+                    content_lower = content.lower()
+                    if any(kw in content_lower for kw in error_keywords):
+                        # Keep only the last 100 lines containing the execution error
+                        lines = content.splitlines()[-100:]
+                        log_contents.append(f"=== Job Log: {file_info.filename} ===\n" + "\n".join(lines))
+                    else:
+                        print(f"ℹ️ Skipping successful job log: {file_info.filename}")
 
     return "\n\n".join(log_contents)
 
