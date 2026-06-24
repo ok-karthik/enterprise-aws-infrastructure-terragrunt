@@ -36,7 +36,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: "Git Checkout"
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: "Setup Platform"
         uses: ./.github/actions/setup-platform
@@ -93,7 +93,7 @@ jobs:
       security-events: write
     steps:
       - name: "Git Checkout"
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: "Setup Platform"
         uses: ./.github/actions/setup-platform
@@ -165,7 +165,7 @@ jobs:
       security-events: write
     steps:
       - name: "Git Checkout"
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: "Setup Platform"
         uses: ./.github/actions/setup-platform
