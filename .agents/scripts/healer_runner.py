@@ -129,12 +129,96 @@ def download_failed_logs(run_id: str, repo: str, token: str) -> str:
 # ==========================================
 # 3. Main Agent Loop
 # ==========================================
+def run_lock_file_upgrade() -> bool:
+    """Finds all active .terraform.lock.hcl files and runs terragrunt providers lock --upgrade on them."""
+    lock_files = []
+    # Walk the repository and locate active lock files (skip cache and git directories)
+    for root, dirs, files in os.walk("."):
+        if ".terragrunt-cache" in root or ".git" in root or ".agents" in root:
+            continue
+        if ".terraform.lock.hcl" in files:
+            lock_files.append(Path(root) / ".terraform.lock.hcl")
+
+    if not lock_files:
+        print("⚠️ No .terraform.lock.hcl files found in the repository.")
+        return False
+
+    changes_made = False
+    for lock_file in lock_files:
+        working_dir = lock_file.parent
+        print(f"⚙️ Running terragrunt providers lock --upgrade in {working_dir}...")
+        res = subprocess.run(
+            ["terragrunt", "providers", "lock", "--upgrade", "--terragrunt-non-interactive"],
+            cwd=str(working_dir),
+            capture_output=True,
+            text=True
+        )
+        if res.returncode != 0:
+            print(f"⚠️ Failed to upgrade lock file in {working_dir}. Stderr:\n{res.stderr}")
+        else:
+            print(f"✅ Upgraded lock file in {working_dir}")
+            changes_made = True
+
+    # Check if files actually changed on disk
+    diff_res = subprocess.run(["git", "diff", "--name-only"], capture_output=True, text=True)
+    if diff_res.stdout.strip():
+        print("📊 Lock files successfully upgraded. Changes detected:")
+        print(diff_res.stdout)
+        return True
+
+    print("ℹ️ Lock files are already up-to-date. No diff detected.")
+    return False
+
+
+def commit_and_push_changes(commit_message: str) -> bool:
+    """Stages all local modifications, commits them, and pushes to the PR branch."""
+    head_branch = os.getenv("HEAD_BRANCH")
+    if not head_branch:
+        print("⚠️ HEAD_BRANCH env var is not set. Skipping git commit/push.")
+        return False
+
+    print(f"🚀 Committing and pushing fixes to branch: {head_branch}...")
+    subprocess.run(["git", "config", "user.name", "github-actions[bot]"])
+    subprocess.run(["git", "config", "user.email", "github-actions[bot]@users.noreply.github.com"])
+
+    # Stage modifications
+    subprocess.run(["git", "add", "-A"])
+
+    # Commit changes
+    commit_res = subprocess.run(
+        ["git", "commit", "-m", commit_message],
+        capture_output=True, text=True
+    )
+    if commit_res.returncode != 0:
+        print(f"⚠️ Commit skipped (no changes detected or git error): {commit_res.stdout}")
+        return False
+
+    # Push to origin
+    push_res = subprocess.run(["git", "push", "origin", head_branch], capture_output=True, text=True)
+    if push_res.returncode != 0:
+        print(f"❌ Failed to push changes to branch {head_branch}. Error:\n{push_res.stderr}")
+        return False
+
+    print("🎉 Successfully pushed remediation commit to the PR branch!")
+    return True
+
+
 def main():
     # 1. Download logs
     failed_logs = download_failed_logs(FAILED_RUN_ID, GITHUB_REPOSITORY, GITHUB_TOKEN)
     if not failed_logs.strip():
         print("⚠️ No log files found in the archive.")
         sys.exit(0)
+
+    # Check if this is a Terraform Provider Lock file mismatch issue
+    if "does not match configured version constraint" in failed_logs or "must use terraform init -upgrade" in failed_logs:
+        print("🛟 [Healer] Detected Terraform Provider Lock mismatch. Attempting automatic lock file upgrades...")
+        lock_fixed = run_lock_file_upgrade()
+        if lock_fixed:
+            commit_and_push_changes("chore(ci): auto-upgrade terraform provider lock files")
+            sys.exit(0)
+        else:
+            print("⚠️ Lock file upgrade did not produce filesystem changes. Falling back to LLM patch...")
 
     # 2. Load system prompt instructions
     if not CI_HEALER_PROMPT_PATH.exists():
@@ -161,7 +245,7 @@ def main():
     print(patch_code)
     print("==========================================")
 
-    # 4. Extract, apply, and commit the patch to the PR branch
+    # 4. Extract and apply the patch to the PR branch
     apply_and_push_patch(patch_code)
 
 
@@ -200,35 +284,8 @@ def apply_and_push_patch(patch_code: str):
         return
     print("✅ Successfully applied git patch locally.")
 
-    # 2. Get head branch environment
-    head_branch = os.getenv("HEAD_BRANCH")
-    if not head_branch:
-        print("⚠️ HEAD_BRANCH env var is not set. Skipping git commit/push.")
-        return
-
-    # 3. Configure git, commit, and push
-    print(f"🚀 Committing and pushing fixes to branch: {head_branch}...")
-    subprocess.run(["git", "config", "user.name", "github-actions[bot]"])
-    subprocess.run(["git", "config", "user.email", "github-actions[bot]@users.noreply.github.com"])
-
-    # Stage changes
-    subprocess.run(["git", "add", "-A"])
-
-    # Commit changes
-    commit_res = subprocess.run(
-        ["git", "commit", "-m", "chore(ci): auto-remediate pipeline failure"],
-        capture_output=True, text=True
-    )
-    if commit_res.returncode != 0:
-        print(f"⚠️ Commit skipped (no changes detected or git error): {commit_res.stdout}")
-        return
-
-    # Push back to origin
-    push_res = subprocess.run(["git", "push", "origin", head_branch], capture_output=True, text=True)
-    if push_res.returncode != 0:
-        print(f"❌ Failed to push changes to branch {head_branch}. Error:\n{push_res.stderr}")
-    else:
-        print("🎉 Successfully pushed remediation commit to the PR branch!")
+    # 2. Commit and push the applied patch
+    commit_and_push_changes("chore(ci): auto-remediate pipeline failure")
 
 
 if __name__ == "__main__":

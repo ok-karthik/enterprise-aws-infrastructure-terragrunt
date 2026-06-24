@@ -7,7 +7,15 @@ on:
 jobs:
   heal:
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'failure' }} # Run ONLY if it failed
+    # Run inside the platform toolchain container to access terragrunt/terraform
+    container:
+      image: ghcr.io/ok-karthik/infrastructure-toolchain:latest
+      options: --user root
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    # Run ONLY if the Terragrunt CI/CD run failed
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -19,11 +27,6 @@ jobs:
         run: |
           git fetch origin main
           git checkout origin/main -- .agents
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.10"
 
       - name: Install Dependencies
         run: |
