@@ -2,6 +2,7 @@ import os
 import sys
 import zipfile
 import io
+from pathlib import Path
 import requests
 from openai import OpenAI
 
@@ -114,5 +115,4 @@ def main():
     print("💾 Saved patch proposal to patch_proposal.diff")
 
 if __name__ == "__main__":
-    from pathlib import Path
     main()
