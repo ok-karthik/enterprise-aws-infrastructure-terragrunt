@@ -10,7 +10,7 @@ jobs:
     if: ${{ github.event.workflow_run.conclusion == 'failure' }} # Run ONLY if it failed
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ github.event.workflow_run.head_branch }}
           repository: ${{ github.event.workflow_run.head_repository.full_name }}
