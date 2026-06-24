@@ -146,9 +146,9 @@ def run_lock_file_upgrade() -> bool:
     changes_made = False
     for lock_file in lock_files:
         working_dir = lock_file.parent
-        print(f"⚙️ Running terragrunt providers lock --upgrade in {working_dir}...")
+        print(f"⚙️ Running terragrunt --non-interactive init -upgrade in {working_dir}...")
         res = subprocess.run(
-            ["terragrunt", "providers", "lock", "--upgrade", "--terragrunt-non-interactive"],
+            ["terragrunt", "--non-interactive", "init", "-upgrade"],
             cwd=str(working_dir),
             capture_output=True,
             text=True
