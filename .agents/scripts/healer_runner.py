@@ -204,6 +204,10 @@ def commit_and_push_changes(commit_message: str) -> bool:
 
 
 def main():
+    # 0. Set Git safe directory flags system-wide and globally to prevent dubious ownership issues
+    subprocess.run(["git", "config", "--system", "--add", "safe.directory", "*"], capture_output=True)
+    subprocess.run(["git", "config", "--global", "--add", "safe.directory", "*"], capture_output=True)
+
     # 1. Download logs
     failed_logs = download_failed_logs(FAILED_RUN_ID, GITHUB_REPOSITORY, GITHUB_TOKEN)
     if not failed_logs.strip():
@@ -226,14 +230,35 @@ def main():
         sys.exit(1)
     system_prompt = CI_HEALER_PROMPT_PATH.read_text().strip()
 
+    # 2.5 Generate a compact project tree representation
+    project_files = []
+    for root, dirs, files in os.walk("."):
+        # Prune search in-place to avoid descending into unwanted directories
+        dirs[:] = [d for d in dirs if d not in (".git", ".github", ".terragrunt-cache", ".agents", "venv", ".venv")]
+        for file in sorted(files):
+            if file.endswith((".tf", ".hcl", ".tfvars", ".yaml", ".yml")) or file in ("Dockerfile", "Makefile", "renovate.json"):
+                path = Path(root) / file
+                try:
+                    project_files.append(str(path.relative_to(".")))
+                except ValueError:
+                    project_files.append(str(path))
+
+    project_tree = "\n".join(sorted(project_files))
+
     print("\n🧠 [Healer Agent] Analyzing logs with Groq (llama-3.3-70b-versatile)...")
+
+    user_payload = (
+        f"The pipeline crashed with these logs:\n\n{failed_logs}\n\n"
+        f"Here is the project tree layout (relevant files only):\n"
+        f"```\n{project_tree}\n```"
+    )
 
     # 3. Call Groq LLM
     response = client.chat.completions.create(
         model="llama-3.3-70b-versatile",
         messages=[
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": f"The pipeline crashed with these logs:\n\n{failed_logs}"}
+            {"role": "user", "content": user_payload}
         ],
         temperature=0.1
     )
