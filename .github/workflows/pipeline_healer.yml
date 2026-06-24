@@ -32,7 +32,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          pip install openai requests
+          pip install --break-system-packages openai requests
 
       - name: Run Healer Agent
         env:
