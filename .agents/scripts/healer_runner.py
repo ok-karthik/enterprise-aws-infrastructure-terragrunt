@@ -39,12 +39,51 @@ CI_HEALER_PROMPT_PATH = BASE_DIR / "prompts" / "ci_healer.md"
 # ==========================================
 # 2. Fetch Failed Logs from GitHub API
 # ==========================================
+def get_failed_job_names(run_id: str, repo: str, token: str) -> list[str]:
+    """Queries the GitHub API to find which specific jobs failed in the run."""
+    url = f"https://api.github.com/repos/{repo}/actions/runs/{run_id}/jobs"
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28"
+    }
+    try:
+        response = requests.get(url, headers=headers)
+        if response.status_code == 200:
+            data = response.json()
+            return [job["name"] for job in data.get("jobs", []) if job.get("conclusion") == "failure"]
+    except Exception as e:
+        print(f"⚠️ Failed to query jobs list: {e}")
+    return []
+
+
+def is_log_for_failed_job(filename: str, failed_jobs: list[str]) -> bool:
+    """Matches zip log filenames (like 'Dev___Plan__dev.txt') to failed job names."""
+    if not failed_jobs:
+        return True # Fallback: match all files if we couldn't fetch job list
+
+    # Clean filename (strip extension and replace spacers)
+    clean_file = filename.replace(".txt", "").replace("_", " ").replace("-", " ").lower()
+    for job in failed_jobs:
+        clean_job = job.replace("/", " ").replace(":", " ").replace("-", " ").lower()
+        words_file = set(clean_file.split())
+        words_job = set(clean_job.split())
+        # If words match significantly, we have a match
+        if words_job.issubset(words_file) or words_file.issubset(words_job):
+            return True
+    return False
+
+
 def download_failed_logs(run_id: str, repo: str, token: str) -> str:
     """
     Downloads the execution logs for a specific GitHub workflow run.
-    GitHub returns this as a ZIP archive containing text log files for each job.
+    Extracts and filters logs only for the specific jobs that failed.
     """
-    print(f"📥 Fetching logs for run ID: {run_id} in repo: {repo}...")
+    # 1. Query the failed jobs list
+    failed_jobs = get_failed_job_names(run_id, repo, token)
+    print(f"🔍 Failed jobs identified on GitHub: {failed_jobs}")
+
+    print(f"📥 Fetching log archive for run ID: {run_id}...")
     url = f"https://api.github.com/repos/{repo}/actions/runs/{run_id}/logs"
     headers = {
         "Authorization": f"Bearer {token}",
@@ -57,27 +96,28 @@ def download_failed_logs(run_id: str, repo: str, token: str) -> str:
         print(f"❌ Failed to fetch logs. API Status: {response.status_code}")
         sys.exit(1)
 
-    # Read the downloaded ZIP file in memory
     zip_file_bytes = io.BytesIO(response.content)
     log_contents = []
-
     error_keywords = ["error", "fail", "exit status", "violat", "deny", "exception"]
 
     with zipfile.ZipFile(zip_file_bytes, 'r') as zip_ref:
         for file_info in zip_ref.infolist():
-            # Skip folders or metadata logs, only analyze main job text logs
+            # Check main text logs and filter by failed job matching
             if file_info.filename.endswith(".txt") and not "/" in file_info.filename:
-                with zip_ref.open(file_info.filename) as f:
-                    content = f.read().decode('utf-8', errors='ignore')
+                if is_log_for_failed_job(file_info.filename, failed_jobs):
+                    with zip_ref.open(file_info.filename) as f:
+                        content = f.read().decode('utf-8', errors='ignore')
+                        content_lower = content.lower()
 
-                    # Only process logs that contain error keywords
-                    content_lower = content.lower()
-                    if any(kw in content_lower for kw in error_keywords):
-                        # Keep only the last 40 lines containing the final execution error
-                        lines = content.splitlines()[-40:]
-                        log_contents.append(f"=== Job Log: {file_info.filename} ===\n" + "\n".join(lines))
-                    else:
-                        print(f"ℹ️ Skipping successful job log: {file_info.filename}")
+                        # Only keep logs that contain an indication of failure
+                        if any(kw in content_lower for kw in error_keywords):
+                            # Keep the last 100 lines (we can afford more lines since we only read failed jobs)
+                            lines = content.splitlines()[-100:]
+                            log_contents.append(f"=== Job Log: {file_info.filename} ===\n" + "\n".join(lines))
+                        else:
+                            print(f"ℹ️ Skipping clean log file: {file_info.filename}")
+                else:
+                    print(f"ℹ️ Skipping successful job log: {file_info.filename}")
 
     logs = "\n\n".join(log_contents)
     print(f"📊 Prepared log payload size: {len(logs)} characters (~{len(logs) // 4} tokens)")
