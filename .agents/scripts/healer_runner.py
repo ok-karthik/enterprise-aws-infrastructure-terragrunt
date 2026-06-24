@@ -3,6 +3,7 @@ import sys
 import zipfile
 import io
 from pathlib import Path
+from typing import Optional
 import requests
 from openai import OpenAI
 
