@@ -32,7 +32,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          pip install --break-system-packages openai requests
+          python3 -m pip install --break-system-packages openai requests
 
       - name: Run Healer Agent
         env:
@@ -40,4 +40,4 @@ jobs:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           FAILED_RUN_ID: ${{ github.event.workflow_run.id }}
           HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
-        run: python .agents/scripts/healer_runner.py
+        run: python3 .agents/scripts/healer_runner.py
