@@ -25,6 +25,7 @@ jobs:
 
       - name: Use Latest Healer Code from Main
         run: |
+          git config --global --add safe.directory '*'
           git fetch origin main
           git checkout origin/main -- .agents
 
