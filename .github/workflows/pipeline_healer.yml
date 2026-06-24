@@ -11,6 +11,9 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_branch }}
+          repository: ${{ github.event.workflow_run.head_repository.full_name }}
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -24,6 +27,7 @@ jobs:
       - name: Run Healer Agent
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}  # Changed to GROQ_API_KEY
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           FAILED_RUN_ID: ${{ github.event.workflow_run.id }}
-        run: python .agents/scripts/healer_runner.py  # Changed to .agents/scripts/
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+        run: python .agents/scripts/healer_runner.py

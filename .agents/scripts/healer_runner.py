@@ -159,10 +159,75 @@ def main():
     print(patch_code)
     print("==========================================")
 
-    # Write the output patch to a local file so the GHA workflow can apply it if needed
-    with open("patch_proposal.diff", "w") as pf:
-        pf.write(patch_code)
-    print("💾 Saved patch proposal to patch_proposal.diff")
+    # 4. Extract, apply, and commit the patch to the PR branch
+    apply_and_push_patch(patch_code)
+
+
+def extract_diff(text: str) -> Optional[str]:
+    """Extracts the first diff block from the LLM markdown response."""
+    import re
+    # Match code blocks labeled diff or standard code blocks containing diff headers
+    match = re.search(r"```(?:diff)?\s*(.*?)\s*```", text, re.DOTALL)
+    if match:
+        block = match.group(1)
+        if "--- " in block and "+++" in block:
+            return block
+    # Fallback if no block tags are found but diff headers exist
+    if "--- " in text:
+        match_raw = re.search(r"(--- a/.*)", text, re.DOTALL)
+        if match_raw:
+            return match_raw.group(1)
+    return None
+
+
+def apply_and_push_patch(patch_code: str):
+    """Parses, applies, and pushes the patch to the source branch."""
+    diff_text = extract_diff(patch_code)
+    if not diff_text:
+        print("⚠️ Could not extract a valid git diff block from the agent response. Skipping auto-remediation.")
+        return
+
+    patch_path = Path("patch_proposal.diff")
+    patch_path.write_text(diff_text)
+    print("💾 Saved clean diff block to patch_proposal.diff")
+
+    # 1. Apply the patch locally
+    res = subprocess.run(["git", "apply", str(patch_path)], capture_output=True, text=True)
+    if res.returncode != 0:
+        print(f"❌ Failed to apply patch using git apply. Error:\n{res.stderr}")
+        return
+    print("✅ Successfully applied git patch locally.")
+
+    # 2. Get head branch environment
+    head_branch = os.getenv("HEAD_BRANCH")
+    if not head_branch:
+        print("⚠️ HEAD_BRANCH env var is not set. Skipping git commit/push.")
+        return
+
+    # 3. Configure git, commit, and push
+    print(f"🚀 Committing and pushing fixes to branch: {head_branch}...")
+    subprocess.run(["git", "config", "user.name", "github-actions[bot]"])
+    subprocess.run(["git", "config", "user.email", "github-actions[bot]@users.noreply.github.com"])
+
+    # Stage changes
+    subprocess.run(["git", "add", "-A"])
+
+    # Commit changes
+    commit_res = subprocess.run(
+        ["git", "commit", "-m", "chore(ci): auto-remediate pipeline failure"],
+        capture_output=True, text=True
+    )
+    if commit_res.returncode != 0:
+        print(f"⚠️ Commit skipped (no changes detected or git error): {commit_res.stdout}")
+        return
+
+    # Push back to origin
+    push_res = subprocess.run(["git", "push", "origin", head_branch], capture_output=True, text=True)
+    if push_res.returncode != 0:
+        print(f"❌ Failed to push changes to branch {head_branch}. Error:\n{push_res.stderr}")
+    else:
+        print("🎉 Successfully pushed remediation commit to the PR branch!")
+
 
 if __name__ == "__main__":
     main()
