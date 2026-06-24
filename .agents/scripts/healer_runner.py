@@ -130,7 +130,7 @@ def download_failed_logs(run_id: str, repo: str, token: str) -> str:
 # 3. Main Agent Loop
 # ==========================================
 def run_lock_file_upgrade() -> bool:
-    """Finds all active .terraform.lock.hcl files and runs terragrunt providers lock --upgrade on them."""
+    """Finds all active .terraform.lock.hcl files and runs appropriate upgrade commands on them."""
     lock_files = []
     # Walk the repository and locate active lock files (skip cache and git directories)
     for root, dirs, files in os.walk("."):
@@ -143,21 +143,57 @@ def run_lock_file_upgrade() -> bool:
         print("⚠️ No .terraform.lock.hcl files found in the repository.")
         return False
 
+    # Temporarily mock get_aws_account_id() calls to prevent AWS authentication errors during parsing
+    mocked_files = []
+    for root, dirs, files in os.walk("."):
+        if ".git" in root or ".terragrunt-cache" in root or ".agents" in root:
+            continue
+        for file in files:
+            if file.endswith(".hcl"):
+                hcl_path = Path(root) / file
+                try:
+                    content = hcl_path.read_text()
+                    if "get_aws_account_id()" in content:
+                        print(f"✏️ Temporarily mocking get_aws_account_id() in {hcl_path}...")
+                        mocked_content = content.replace("get_aws_account_id()", '"123456789012"')
+                        hcl_path.write_text(mocked_content)
+                        mocked_files.append(hcl_path)
+                except Exception as e:
+                    print(f"⚠️ Failed to mock {hcl_path}: {e}")
+
     changes_made = False
-    for lock_file in lock_files:
-        working_dir = lock_file.parent
-        print(f"⚙️ Running terragrunt --non-interactive init -upgrade -backend=false in {working_dir}...")
-        res = subprocess.run(
-            ["terragrunt", "--non-interactive", "init", "-upgrade", "-backend=false"],
-            cwd=str(working_dir),
-            capture_output=True,
-            text=True
-        )
-        if res.returncode != 0:
-            print(f"⚠️ Failed to upgrade lock file in {working_dir}. Stderr:\n{res.stderr}")
-        else:
-            print(f"✅ Upgraded lock file in {working_dir}")
-            changes_made = True
+    try:
+        for lock_file in lock_files:
+            working_dir = lock_file.parent
+            is_terragrunt = (working_dir / "terragrunt.hcl").exists()
+
+            if is_terragrunt:
+                print(f"⚙️ Running terragrunt --non-interactive init -upgrade -backend=false in {working_dir}...")
+                res = subprocess.run(
+                    ["terragrunt", "--non-interactive", "init", "-upgrade", "-backend=false"],
+                    cwd=str(working_dir),
+                    capture_output=True,
+                    text=True
+                )
+            else:
+                print(f"⚙️ Running terraform init -upgrade -backend=false -input=false in {working_dir}...")
+                res = subprocess.run(
+                    ["terraform", "init", "-upgrade", "-backend=false", "-input=false"],
+                    cwd=str(working_dir),
+                    capture_output=True,
+                    text=True
+                )
+
+            if res.returncode != 0:
+                print(f"⚠️ Failed to upgrade lock file in {working_dir}. Stderr:\n{res.stderr}")
+            else:
+                print(f"✅ Upgraded lock file in {working_dir}")
+                changes_made = True
+    finally:
+        # Revert mocked HCL files back to their original state
+        for hcl_path in mocked_files:
+            print(f"🔄 Restoring original content for {hcl_path}...")
+            subprocess.run(["git", "checkout", "--", str(hcl_path)], capture_output=True)
 
     # Check if files actually changed on disk
     diff_res = subprocess.run(["git", "diff", "--name-only"], capture_output=True, text=True)
@@ -271,7 +307,10 @@ def main():
     print("==========================================")
 
     # 4. Extract and apply the patch to the PR branch
-    apply_and_push_patch(patch_code)
+    patched = apply_and_push_patch(patch_code)
+    if not patched:
+        print("❌ Healer failed to automatically fix the issue.")
+        sys.exit(1)
 
 
 def extract_diff(text: str) -> Optional[str]:
@@ -291,12 +330,12 @@ def extract_diff(text: str) -> Optional[str]:
     return None
 
 
-def apply_and_push_patch(patch_code: str):
-    """Parses, applies, and pushes the patch to the source branch."""
+def apply_and_push_patch(patch_code: str) -> bool:
+    """Parses, applies, and pushes the patch to the source branch. Returns True if successful."""
     diff_text = extract_diff(patch_code)
     if not diff_text:
         print("⚠️ Could not extract a valid git diff block from the agent response. Skipping auto-remediation.")
-        return
+        return False
 
     patch_path = Path("patch_proposal.diff")
     patch_path.write_text(diff_text)
@@ -306,11 +345,11 @@ def apply_and_push_patch(patch_code: str):
     res = subprocess.run(["git", "apply", str(patch_path)], capture_output=True, text=True)
     if res.returncode != 0:
         print(f"❌ Failed to apply patch using git apply. Error:\n{res.stderr}")
-        return
+        return False
     print("✅ Successfully applied git patch locally.")
 
     # 2. Commit and push the applied patch
-    commit_and_push_changes("chore(ci): auto-remediate pipeline failure")
+    return commit_and_push_changes("chore(ci): auto-remediate pipeline failure")
 
 
 if __name__ == "__main__":
