@@ -73,13 +73,15 @@ def download_failed_logs(run_id: str, repo: str, token: str) -> str:
                     # Only process logs that contain error keywords
                     content_lower = content.lower()
                     if any(kw in content_lower for kw in error_keywords):
-                        # Keep only the last 100 lines containing the execution error
-                        lines = content.splitlines()[-100:]
+                        # Keep only the last 40 lines containing the final execution error
+                        lines = content.splitlines()[-40:]
                         log_contents.append(f"=== Job Log: {file_info.filename} ===\n" + "\n".join(lines))
                     else:
                         print(f"ℹ️ Skipping successful job log: {file_info.filename}")
 
-    return "\n\n".join(log_contents)
+    logs = "\n\n".join(log_contents)
+    print(f"📊 Prepared log payload size: {len(logs)} characters (~{len(logs) // 4} tokens)")
+    return logs
 
 
 # ==========================================
