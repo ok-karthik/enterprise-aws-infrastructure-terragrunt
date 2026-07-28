@@ -83,8 +83,8 @@ This turns a red pipeline into an auto-generated fix proposal instead of a manua
 
 ```bash
 # Prereqs: terraform >=1.15, terragrunt >=1.0.3, tflint, trivy, conftest, aws-cli v2
-git clone https://github.com/ok-karthik/enterprise-aws-platform-terragrunt.git
-cd enterprise-aws-platform-terragrunt
+git clone https://github.com/ok-karthik/enterprise-aws-infrastructure-terragrunt.git
+cd enterprise-aws-infrastructure-terragrunt
 
 make install        # install the pre-commit hook (fmt + smoke-test + trivy)
 make validate       # full local validation suite (compliance, fmt, init/validate, tflint)
