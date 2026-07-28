@@ -84,15 +84,3 @@ runs:
           echo "👉 Check if the IAM Role trust policy allows OIDC from this repo/environment."
           exit 1
         }
-
-    - name: Verify AWS Identity (Idempotency Check)
-      if: ${{ inputs.aws_role_arn != '' }}
-      shell: bash
-      run: |
-        echo "🔐 Verifying AWS session..."
-        # Added 10s timeout to prevent hangs. Failure here means OIDC was rejected.
-        timeout 10 aws sts get-caller-identity --query "Arn" --output text || {
-          echo "❌ ERROR: Failed to verify AWS identity."
-          echo "👉 Check if the IAM Role trust policy allows OIDC from this repo/environment."
-          exit 1
-        }

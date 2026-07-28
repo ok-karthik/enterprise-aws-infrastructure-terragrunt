@@ -7,7 +7,7 @@
 [![Security: Checkov](https://img.shields.io/badge/Security-Checkov-20B2AA)](https://www.checkov.io/)
 [![Security: Trivy](https://img.shields.io/badge/Security-Trivy-1904DA)](https://github.com/aquasecurity/trivy)
 [![Renovate](https://img.shields.io/badge/Deps-Renovate-brightgreen)](https://github.com/renovatebot/renovate)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 
 A production-grade, multi-environment AWS infrastructure platform built with Terragrunt and Terraform. This project demonstrates **Staff Engineer level patterns** in Infrastructure-as-Code (IaC)—fully DRY, secure, observable, and automated for high-scale engineering teams.
 
@@ -336,8 +336,8 @@ A pre-commit hook runs [`smoke-test.sh`](infrastructure-live/scripts/smoke-test.
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/ok-karthik/enterprise-aws-infrastructure-terragrunt.git
-cd enterprise-aws-infrastructure-terragrunt
+git clone https://github.com/ok-karthik/enterprise-aws-platform-terragrunt.git
+cd enterprise-aws-platform-terragrunt
 
 # 2. Install pre-commit hooks (runs smoke-test on every commit)
 pre-commit install

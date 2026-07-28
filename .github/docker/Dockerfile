@@ -58,7 +58,7 @@ COPY --from=trivy_source /usr/local/bin/trivy /usr/local/bin/trivy
 FROM debian:bookworm-slim
 
 # Add metadata
-LABEL org.opencontainers.image.source="https://github.com/ok-karthik/enterprise-aws-infrastructure-terragrunt"
+LABEL org.opencontainers.image.source="https://github.com/ok-karthik/enterprise-aws-platform-terragrunt"
 LABEL org.opencontainers.image.description="Enterprise Infrastructure Toolchain (Terraform, Terragrunt, TFLint, Conftest)"
 
 # Install runtime dependencies
