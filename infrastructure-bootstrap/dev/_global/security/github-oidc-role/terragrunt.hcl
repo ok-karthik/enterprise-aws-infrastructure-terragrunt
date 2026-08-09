@@ -3,7 +3,7 @@ include "root" {
 }
 
 terraform {
-  source = "tfr://registry.terraform.io/terraform-aws-modules/iam/aws//modules/iam-github-oidc-role?version=6.6.0"
+  source = "tfr://registry.terraform.io/terraform-aws-modules/iam/aws//modules/iam-github-oidc-role?version=6.6.1"
 }
 
 # Ensure the OIDC Provider (the trust bridge) is created before the role

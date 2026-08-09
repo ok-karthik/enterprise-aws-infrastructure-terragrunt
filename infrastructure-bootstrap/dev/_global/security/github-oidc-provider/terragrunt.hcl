@@ -3,7 +3,7 @@ include "root" {
 }
 
 terraform {
-  source = "tfr://registry.terraform.io/terraform-aws-modules/iam/aws//modules/iam-github-oidc-provider?version=6.6.0"
+  source = "tfr://registry.terraform.io/terraform-aws-modules/iam/aws//modules/iam-github-oidc-provider?version=6.6.1"
 }
 
 # The module defaults to GitHub (https://token.actions.githubusercontent.com)
