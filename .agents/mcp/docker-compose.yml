@@ -1,0 +1,44 @@
+# Local documentation-retrieval servers for the IaC Generation Agent (see ../scripts/iac_agent.py).
+#
+# These are optional: iac_agent.py has a built-in fallback that fetches AWS provider docs
+# directly from GitHub, so it works with zero extra services. Run this compose file when you
+# want an MCP-aware host (Claude Code, Claude Desktop, etc.) to query live Terraform Registry /
+# Terragrunt docs instead, or when you extend iac_agent.py to use an MCP client.
+#
+# Usage:
+#   docker compose -f .agents/mcp/docker-compose.yml up -d
+#   curl http://localhost:8080/health   # terraform-mcp health check
+#
+# terraform-mcp (HashiCorp, official): https://github.com/hashicorp/terraform-mcp-server
+# terragrunt-mcp (community):          https://github.com/omattsson/terragrunt-mcp-server
+#
+# NOTE: terraform-mcp's TFE_TOKEN/TFE_ADDRESS are only required for private HCP
+# Terraform/Enterprise features (workspaces, private registry). Public Terraform Registry
+# doc/provider search works without them — leave them unset unless you need those features.
+# NOTE: the terragrunt-mcp image below is a small, single-maintainer community project
+# (not published by Gruntwork/HashiCorp) — vet it before relying on it for anything sensitive.
+
+services:
+  terraform-mcp:
+    image: hashicorp/terraform-mcp-server:1.2.0
+    environment:
+      - TRANSPORT_MODE=streamable-http
+      - TRANSPORT_HOST=0.0.0.0
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+  # terragrunt-mcp only speaks stdio (no HTTP transport), so it can't run as a detached
+  # `up -d` service in any useful way — `docker compose run --rm terragrunt-mcp` attaches
+  # your terminal's stdin/stdout for an MCP host to talk to over the compose network.
+  # Left here as a pinned reference config rather than something `up -d` actually uses.
+  terragrunt-mcp:
+    image: olofdevopsninja/terragrunt-mcp-server:latest
+    stdin_open: true
+    tty: true
+    profiles: ["manual"]
+    volumes:
+      - terragrunt-mcp-cache:/app/.cache
+
+volumes:
+  terragrunt-mcp-cache:
