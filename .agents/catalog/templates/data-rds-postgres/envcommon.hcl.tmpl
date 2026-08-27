@@ -1,0 +1,58 @@
+# Common configuration for encrypted RDS PostgreSQL database modules.
+# Golden path: reuses vetted terraform-aws-modules/rds/aws registry module.
+# Rendered by IaC Generation Agent from .agents/catalog/templates/data-rds-postgres/.
+
+terraform {
+  source = "tfr://registry.terraform.io/terraform-aws-modules/rds/aws?version=6.10.0"
+}
+
+locals {
+  env_vars = read_terragrunt_config(find_in_parent_folders("env.hcl"))
+  env      = local.env_vars.locals.env
+
+  is_prod = local.env == "prod"
+}
+
+dependency "vpc" {
+  config_path = "${get_terragrunt_dir()}/../../network/vpc"
+  mock_outputs = {
+    vpc_id          = "vpc-12345678"
+    private_subnets = ["subnet-12345678", "subnet-87654321"]
+  }
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "show"]
+}
+
+inputs = {
+  identifier = "__DB_SLUG__-${local.env}"
+
+  engine               = "postgres"
+  engine_version       = "16.3"
+  family               = "postgres16"
+  major_engine_version = "16"
+  instance_class       = local.is_prod ? "db.m6g.large" : "db.t4g.micro"
+
+  allocated_storage     = local.is_prod ? 50 : 20
+  max_allocated_storage = local.is_prod ? 100 : 20
+  storage_type          = "gp3"
+  storage_encrypted     = true
+
+  db_name  = "__DB_NAME__"
+  username = "dbadmin"
+  port     = 5432
+
+  multi_az               = local.is_prod
+  subnet_ids             = dependency.vpc.outputs.private_subnets
+  publicly_accessible    = false
+  deletion_protection    = local.is_prod
+  skip_final_snapshot    = !local.is_prod
+
+  backup_retention_period = local.is_prod ? 30 : 7
+  backup_window           = "03:00-06:00"
+  maintenance_window      = "Mon:00:00-Mon:03:00"
+
+  tags = {
+    Environment = title(local.env)
+    Service     = "__SERVICE_NAME__"
+    Project     = "Infrastructure-Automation"
+  }
+}

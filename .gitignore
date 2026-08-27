@@ -4,7 +4,13 @@
 **/terraform.tfstate.backup
 **/.terragrunt-cache/
 **/.terragrunt-config-cache/
+**/tfplan.bin
+**/tfplan.json
 .external_modules/
 .DS_Store
 .AppleDouble
 .LSOverride
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.agents/metrics/*.jsonl

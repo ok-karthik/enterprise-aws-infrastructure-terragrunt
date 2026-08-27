@@ -1,0 +1,57 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: aws-rds-postgres-database
+  title: Compliant AWS RDS PostgreSQL Database
+  description: Scaffolds a pre-vetted, encrypted, non-public AWS RDS PostgreSQL instance wired to the VPC.
+  tags:
+    - aws
+    - database
+    - rds
+    - postgres
+    - golden-path
+spec:
+  owner: platform-team
+  type: infrastructure
+
+  parameters:
+    - title: Database Specification
+      required:
+        - db_slug
+        - environment
+      properties:
+        db_slug:
+          title: Database Service Name
+          type: string
+          description: Name identifier (e.g. orders-db, payment-service)
+        database_name:
+          title: Initial Database Name
+          type: string
+          default: appdb
+        environment:
+          title: Target Environment
+          type: string
+          enum:
+            - dev
+            - staging
+            - prod
+          default: dev
+        region:
+          title: AWS Region
+          type: string
+          default: eu-central-1
+
+  steps:
+    - id: generate-module
+      name: Scaffold Infrastructure Module
+      action: platform:iac-agent:generate
+      input:
+        request: "provision an RDS postgres database for ${{ parameters.db_slug }}"
+        env: ${{ parameters.environment }}
+        region: ${{ parameters.region }}
+        catalog_id: data/rds-postgres
+
+  output:
+    links:
+      - title: Review Proposed Infrastructure Branch
+        url: ${{ steps['generate-module'].output.branch_url }}

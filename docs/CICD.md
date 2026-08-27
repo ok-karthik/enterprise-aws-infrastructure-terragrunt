@@ -37,6 +37,13 @@ Triggered on a failed "Terragrunt CI/CD" run:
 2. If it detects a provider-lock mismatch, runs `init -upgrade -backend=false` across all active `.terraform.lock.hcl` files (temporarily mocking `get_aws_account_id()` so parsing works without AWS creds) and commits the result.
 3. Otherwise sends logs + repo tree to a Groq-hosted LLM, extracts a `git diff`, applies it, and pushes a remediation commit to the PR branch.
 
+## Autonomous IaC Platform Agent & ChatOps (`chatops_generator.yml` + `.agents/`)
+
+Provides on-demand self-service infrastructure generation, drift reconciliation, and Backstage IDP integration:
+- Listens for `/generate` and `/reconcile` issue comments.
+- Closed-loop drift reconciliation links nightly drift issues to corrective pull requests.
+- See full architecture flow diagrams and usage guide in **[docs/IAC_PLATFORM_AGENT.md](IAC_PLATFORM_AGENT.md)**.
+
 ## Dependency automation
 
 Renovate (`renovate.json`) tracks Terraform Registry modules (`tfr://`), toolchain binary versions in the Dockerfile ARGs, and GitHub Actions — grouping non-major bumps into a single PR and isolating majors for review.

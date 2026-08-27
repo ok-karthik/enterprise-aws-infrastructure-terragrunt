@@ -1,0 +1,28 @@
+# SRE Error Budget Policy & Service Level Objectives
+# Used by .agents/scripts/iac_agent.py (Phase D5 / PLAN.md) for change-risk budgeting.
+#
+# If remaining error budget drops below critical_threshold_pct (10%), agent-authored
+# changes to prod are blocked from auto-proposal unless explicitly overridden with
+# --bypass-error-budget or confirmed with SRE approval.
+
+environments:
+  dev:
+    slo_target_pct: 95.0
+    error_budget_remaining_pct: 100.0
+    freeze_on_exhaustion: false
+    critical_threshold_pct: 0.0
+
+  staging:
+    slo_target_pct: 99.0
+    error_budget_remaining_pct: 85.0
+    freeze_on_exhaustion: false
+    critical_threshold_pct: 5.0
+
+  prod:
+    slo_target_pct: 99.95
+    error_budget_remaining_pct: 92.5 # Default remaining budget; can be overridden via SLO_ERROR_BUDGET_REMAINING env var
+    freeze_on_exhaustion: true
+    critical_threshold_pct: 10.0
+    allowed_change_windows:
+      - "Mon-Thu 08:00-16:00 UTC"
+    enforce_change_windows: false # Opt-in guardrail: set true or ENFORCE_CHANGE_WINDOWS=1 to freeze changes outside windows

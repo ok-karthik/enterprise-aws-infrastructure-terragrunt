@@ -1,0 +1,41 @@
+# Common configuration for encrypted S3 bucket modules across all environments.
+# Golden path: reuses the vetted terraform-aws-modules/s3-bucket/aws registry module,
+# the same pattern as infrastructure-live/_envcommon/data/s3.hcl — rendered by the IaC
+# Generation Agent from .agents/catalog/templates/data-s3-encrypted/, not LLM-authored.
+
+terraform {
+  source = "tfr://registry.terraform.io/terraform-aws-modules/s3-bucket/aws?version=5.12.0"
+}
+
+locals {
+  env_vars = read_terragrunt_config(find_in_parent_folders("env.hcl"))
+  env      = local.env_vars.locals.env
+}
+
+inputs = {
+  bucket = "__BUCKET_SLUG__-${local.env}-${get_aws_account_id()}"
+
+  versioning = {
+    enabled = true
+  }
+
+  server_side_encryption_configuration = {
+    rule = {
+      apply_server_side_encryption_by_default = {
+        sse_algorithm = "aws:kms"
+      }
+      bucket_key_enabled = true
+    }
+  }
+
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+
+  tags = {
+    Environment = title(local.env)
+    Service     = "__SERVICE_NAME__"
+    Project     = "Infrastructure-Automation"
+  }
+}

@@ -113,6 +113,7 @@ Full tagging/IAM policy in [GOVERNANCE.md](GOVERNANCE.md).
 | :--- | :--- |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Terragrunt inheritance model, module layout, state design |
 | [docs/CICD.md](docs/CICD.md) | Pipeline stages, governance gates, drift detection, self-healing CI |
+| [docs/IAC_PLATFORM_AGENT.md](docs/IAC_PLATFORM_AGENT.md) | Autonomous IaC Platform Agent visual flow, ChatOps, IDP & setup guide |
 | [GOVERNANCE.md](GOVERNANCE.md) | Tagging policy, IAM, branch protection |
 | [FINOPS.md](FINOPS.md) | Cost strategy: spot, scale-to-zero, teardown |
 | [DISASTER_RECOVERY.md](DISASTER_RECOVERY.md) | Runbooks for state corruption, locks, partial applies |
