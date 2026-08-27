@@ -40,12 +40,12 @@
 
 - id: data/dynamodb-table
   description: >-
-    DynamoDB table with point-in-time recovery and encryption at rest.
-    (Classification hint only — no pre-built template yet.)
+    DynamoDB table with point-in-time recovery, encryption at rest, and PAY_PER_REQUEST billing.
+    Pre-vetted golden path reusing terraform-aws-modules/dynamodb-table/aws.
   module_path: data/dynamodb-table
   resource_hint: aws_dynamodb_table
   keywords:
     - dynamodb
     - dynamo db
     - nosql table
-  template: null
+  template: data-dynamodb-table

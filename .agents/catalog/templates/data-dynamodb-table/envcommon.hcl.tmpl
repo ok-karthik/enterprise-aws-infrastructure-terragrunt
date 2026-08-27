@@ -1,0 +1,39 @@
+# Common configuration for DynamoDB table modules.
+# Golden path: reuses vetted terraform-aws-modules/dynamodb-table/aws registry module.
+# Rendered by IaC Generation Agent from .agents/catalog/templates/data-dynamodb-table/.
+
+terraform {
+  source = "tfr://registry.terraform.io/terraform-aws-modules/dynamodb-table/aws?version=4.2.0"
+}
+
+locals {
+  env_vars = read_terragrunt_config(find_in_parent_folders("env.hcl"))
+  env      = local.env_vars.locals.env
+
+  is_prod = local.env == "prod"
+}
+
+inputs = {
+  name     = "__TABLE_SLUG__-${local.env}"
+  hash_key = "id"
+
+  billing_mode = "PAY_PER_REQUEST"
+
+  attributes = [
+    {
+      name = "id"
+      type = "S"
+    }
+  ]
+
+  point_in_time_recovery_enabled = true
+  server_side_encryption_enabled = true
+
+  deletion_protection_enabled = local.is_prod
+
+  tags = {
+    Environment = title(local.env)
+    Service     = "__SERVICE_NAME__"
+    Project     = "Infrastructure-Automation"
+  }
+}

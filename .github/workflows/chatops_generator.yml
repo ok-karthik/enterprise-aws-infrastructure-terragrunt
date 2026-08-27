@@ -28,7 +28,7 @@ jobs:
 
     steps:
       - name: "Git Checkout"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -45,6 +45,7 @@ jobs:
           COMMENT_BODY: ${{ github.event.comment.body }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
         run: |
@@ -82,7 +83,15 @@ jobs:
 
           # Run IaC Agent
           if [[ "$CMD" =~ ^/reconcile ]]; then
-            python3 .agents/scripts/iac_agent.py --request "$REQUEST_PROMPT" --reconcile "Drift issue #${ISSUE_NUMBER}" --env "$ENV" --region "$REGION" --provider "$PROVIDER" --skip-plan
+            PLAN_FILE="/tmp/drift-plan.txt"
+            echo "Fetching issue body to extract drift plan for #${ISSUE_NUMBER}..."
+            gh issue view "$ISSUE_NUMBER" --json body -q .body > /tmp/issue-body.txt
+            # Extract diff block if present, or fallback to entire issue body
+            sed -n '/```diff/,/```/p' /tmp/issue-body.txt | sed '1d;$d' > "$PLAN_FILE" || true
+            if [ ! -s "$PLAN_FILE" ]; then
+              cp /tmp/issue-body.txt "$PLAN_FILE"
+            fi
+            python3 .agents/scripts/iac_agent.py --request "$REQUEST_PROMPT" --reconcile "$PLAN_FILE" --env "$ENV" --region "$REGION" --provider "$PROVIDER" --skip-plan
           else
             python3 .agents/scripts/iac_agent.py --request "$REQUEST_PROMPT" --env "$ENV" --region "$REGION" --provider "$PROVIDER" --skip-plan
           fi

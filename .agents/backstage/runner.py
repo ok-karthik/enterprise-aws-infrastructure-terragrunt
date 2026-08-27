@@ -11,13 +11,36 @@ Usage:
 
 import argparse
 import json
+import os
 from pathlib import Path
+import subprocess
 import sys
 
 BASE_DIR = Path(__file__).resolve().parent.parent  # .agents/
 sys.path.insert(0, str(BASE_DIR / "scripts"))
 
 from iac_agent import GenerationRequest, IaCPlatformAgent  # noqa: E402
+
+
+def _get_repo_url() -> str:
+    env_repo = os.getenv("GITHUB_REPOSITORY")
+    if env_repo:
+        return f"https://github.com/{env_repo}"
+    custom_url = os.getenv("GIT_REMOTE_URL")
+    if custom_url:
+        return custom_url.rstrip("/")
+    try:
+        res = subprocess.run(["git", "remote", "get-url", "origin"], capture_output=True, text=True, timeout=5)
+        if res.returncode == 0 and res.stdout.strip():
+            url = res.stdout.strip()
+            if url.startswith("git@github.com:"):
+                url = "https://github.com/" + url[len("git@github.com:") :]
+            if url.endswith(".git"):
+                url = url[:-4]
+            return url
+    except Exception:
+        pass
+    return "https://github.com/ok-karthik/enterprise-aws-infrastructure-terragrunt"
 
 
 def main():
@@ -53,10 +76,11 @@ def main():
     agent = IaCPlatformAgent()
     result = agent.generate(req)
 
+    repo_url = _get_repo_url()
     output = {
         "success": result.success,
         "branch_name": result.branch,
-        "branch_url": f"https://github.com/ok-karthik/enterprise-aws-infrastructure-terragrunt/tree/{result.branch}" if result.branch else None,
+        "branch_url": f"{repo_url}/tree/{result.branch}" if result.branch else None,
         "catalog_id": result.catalog_id,
         "files_changed": [str(p) for p in result.files_changed],
         "attempts": result.attempts,

@@ -36,6 +36,7 @@ import urllib.request
 # Local imports
 BASE_DIR = Path(__file__).resolve().parent.parent  # .agents/
 REPO_ROOT = BASE_DIR.parent
+sys.path.insert(0, str(BASE_DIR / "scripts"))
 PROMPT_PATH = BASE_DIR / "prompts" / "iac_agent.md"
 AUDITOR_PROMPT_PATH = BASE_DIR / "prompts" / "auditor.md"
 GENERATE_MODULE_SCRIPT = REPO_ROOT / "infrastructure-live" / "scripts" / "generate-module.sh"
@@ -247,6 +248,7 @@ def scaffold_from_template(entry: dict, module_path: str, env: str, region: str,
         .replace("__BUCKET_SLUG__", slug)
         .replace("__DB_SLUG__", slug)
         .replace("__DB_NAME__", slug.replace("-", "_")[:30])
+        .replace("__TABLE_SLUG__", slug)
         .replace("__SERVICE_NAME__", module_path.split("/")[-1])
     )
     envcommon_path.write_text(rendered)
@@ -354,12 +356,11 @@ def fetch_docs(resource_hint: str) -> str:
     slug = resource_hint[len("aws_") :]
     url = f"https://raw.githubusercontent.com/hashicorp/terraform-provider-aws/main/website/docs/r/{slug}.html.markdown"
     try:
-        import requests
-
-        r = requests.get(url, timeout=10)
-        if r.status_code == 200:
-            print(f"   🌐 Fetched provider docs from GitHub raw fallback for {resource_hint}")
-            return r.text[:8000]
+        req_obj = urllib.request.Request(url, headers={"User-Agent": "IaC-Platform-Agent"})
+        with urllib.request.urlopen(req_obj, timeout=10) as resp:
+            if resp.status == 200:
+                print(f"   🌐 Fetched provider docs from GitHub raw fallback for {resource_hint}")
+                return resp.read().decode("utf-8", errors="replace")[:8000]
     except Exception as e:
         print(f"⚠️ Doc fetch fallback failed for {resource_hint}: {e}")
     return ""
@@ -419,8 +420,40 @@ def semantic_audit(client, model: str, files: list[Path]) -> tuple[bool, str]:
 # ==========================================
 # 4c. SRE Error-Budget Guardrail (Phase D5)
 # ==========================================
-def check_sre_error_budget(env: str, bypass: bool = False) -> tuple[bool, str]:
-    """Inspects SRE error budgets for production change-risk gating."""
+def is_in_change_window(now_utc: datetime, windows: list[str]) -> bool:
+    """Checks if a UTC timestamp falls within any of the specified change windows.
+    Format example: 'Mon-Thu 08:00-16:00 UTC' or 'Mon-Fri 09:00-17:00 UTC'.
+    """
+    day_map = {"Mon": 0, "Tue": 1, "Wed": 2, "Thu": 3, "Fri": 4, "Sat": 5, "Sun": 6}
+    weekday = now_utc.weekday()
+    cur_time = now_utc.time()
+
+    for win in windows:
+        m = re.match(r"([A-Za-z]{3})-([A-Za-z]{3})\s+(\d{2}:\d{2})-(\d{2}:\d{2})\s+UTC", win.strip())
+        if not m:
+            continue
+        start_day, end_day, start_time_str, end_time_str = m.groups()
+        start_day_idx = day_map.get(start_day)
+        end_day_idx = day_map.get(end_day)
+        if start_day_idx is None or end_day_idx is None:
+            continue
+
+        t_start = datetime.strptime(start_time_str, "%H:%M").time()
+        t_end = datetime.strptime(end_time_str, "%H:%M").time()
+
+        if start_day_idx <= end_day_idx:
+            day_matches = start_day_idx <= weekday <= end_day_idx
+        else:
+            day_matches = weekday >= start_day_idx or weekday <= end_day_idx
+
+        if day_matches and t_start <= cur_time <= t_end:
+            return True
+
+    return False
+
+
+def check_sre_error_budget(env: str, bypass: bool = False, now: Optional[datetime] = None) -> tuple[bool, str]:
+    """Inspects SRE error budgets and change windows for production change-risk gating."""
     if env != "prod" or bypass:
         return True, "Non-prod environment or SRE budget bypass active."
 
@@ -441,6 +474,22 @@ def check_sre_error_budget(env: str, bypass: bool = False) -> tuple[bool, str]:
             f"below critical threshold of {critical_threshold:.1f}%. Prod changes are frozen. "
             f"Provide --bypass-error-budget with explicit SRE VP sign-off to proceed.",
         )
+
+    # Change window verification
+    allowed_windows = prod_cfg.get("allowed_change_windows", [])
+    enforce_windows = prod_cfg.get("enforce_change_windows", False) or os.getenv("ENFORCE_CHANGE_WINDOWS") == "1"
+    if allowed_windows:
+        now_utc = now or datetime.now(timezone.utc)
+        in_window = is_in_change_window(now_utc, allowed_windows)
+        if not in_window:
+            msg = (
+                f"SRE Change Window Restriction: current time ({now_utc.strftime('%a %H:%M UTC')}) "
+                f"is outside allowed production change windows ({', '.join(allowed_windows)})."
+            )
+            if enforce_windows:
+                return False, f"❌ {msg} Prod changes are frozen outside change windows."
+            print(f"⚠️  {msg} (enforce_change_windows is disabled, proceeding)")
+
     return True, f"Prod error budget healthy: {remaining:.1f}% remaining."
 
 
@@ -681,7 +730,7 @@ class IaCPlatformAgent:
 
         # 2. Branch setup
         branch_name = None
-        if not req.no_branch:
+        if not req.no_branch and not req.dry_run:
             slug = re.sub(r"[^a-z0-9]+", "-", req.request.lower()).strip("-")[:40]
             branch_name = f"agent/iac-{slug}"
             res = run(["git", "checkout", "-b", branch_name], cwd=REPO_ROOT)
@@ -727,13 +776,11 @@ class IaCPlatformAgent:
         region = classification["region"]
         has_template = bool(catalog_entry and catalog_entry.get("template"))
 
-        # 5. Scaffolding
-        if has_template:
-            files = scaffold_from_template(catalog_entry, module_path, env, region, req.request)
-        else:
-            files = scaffold_skeleton(module_path, env, region, req.dependencies)
+        leaf_file = REPO_ROOT / "infrastructure-live" / env / region / module_path / "terragrunt.hcl"
+        envcommon_path = REPO_ROOT / "infrastructure-live" / "_envcommon" / f"{module_path}.hcl"
 
         if req.dry_run:
+            files = [leaf_file, envcommon_path]
             res = GenerationResult(
                 success=True,
                 branch=branch_name,
@@ -746,6 +793,12 @@ class IaCPlatformAgent:
             )
             record_telemetry({**asdict(res), "timestamp": datetime.now(timezone.utc).isoformat(), "request": req.request})
             return res
+
+        # 5. Scaffolding
+        if has_template:
+            files = scaffold_from_template(catalog_entry, module_path, env, region, req.request)
+        else:
+            files = scaffold_skeleton(module_path, env, region, req.dependencies)
 
         # 6. Generation & Validation Loop
         system_prompt = PROMPT_PATH.read_text() + "\n\n" + build_policy_digest()
@@ -924,8 +977,9 @@ def run_server(port: int = 8000):
             else:
                 self._send_json(404, {"error": "Not found"})
 
-    server = HTTPServer(("0.0.0.0", port), RequestHandler)
-    print(f"🚀 IaC Platform API server listening on http://0.0.0.0:{port}")
+    # WARNING: No auth — bind to localhost only, never expose publicly
+    server = HTTPServer(("127.0.0.1", port), RequestHandler)
+    print(f"🚀 IaC Platform API server listening on http://127.0.0.1:{port}")
     try:
         server.serve_forever()
     except KeyboardInterrupt:

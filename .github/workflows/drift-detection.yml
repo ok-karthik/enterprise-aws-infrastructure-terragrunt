@@ -66,9 +66,22 @@ jobs:
         uses: actions/github-script@v9
         with:
           script: |
+            const fs = require('fs');
             const env = '${{ matrix.environment }}';
             const title = `🚨 Infrastructure Drift Detected: ${env}`;
             const driftDetected = process.env.DRIFT_DETECTED === 'true';
+
+            // Read plan diff if available
+            let planDiff = '';
+            try {
+              if (fs.existsSync('/tmp/drift-plan.txt')) {
+                const raw = fs.readFileSync('/tmp/drift-plan.txt', 'utf8');
+                planDiff = raw.length > 5000 ? raw.slice(0, 5000) + '\n... [truncated]' : raw;
+              }
+            } catch (e) {
+              console.log('Error reading /tmp/drift-plan.txt:', e);
+            }
+            const planBlock = planDiff ? `\n\n### 📋 Drift Plan Output\n\`\`\`diff\n${planDiff}\n\`\`\`` : '';
 
             // 1. Search for existing open issues with this title
             const { data: issues } = await github.rest.issues.listForRepo({
@@ -87,7 +100,7 @@ jobs:
                   owner: context.repo.owner,
                   repo: context.repo.repo,
                   issue_number: existingIssue.number,
-                  body: `🔍 **Update**: Drift is still detected in \`${env}\` as of ${new Date().toUTCString()}. Please remediate as soon as possible.`
+                  body: `🔍 **Update**: Drift is still detected in \`${env}\` as of ${new Date().toUTCString()}. Please remediate as soon as possible.${planBlock}`
                 });
               } else {
                 console.log(`No open drift issue found for ${env}. Creating new one.`);
@@ -95,7 +108,7 @@ jobs:
                   owner: context.repo.owner,
                   repo: context.repo.repo,
                   title: title,
-                  body: `The nightly drift detection workflow found that the live infrastructure in \`${env}\` does not match the Terraform state/code.\n\nPlease review the [Action Logs](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) to see the exact resources that have drifted and remediate immediately.\n\n🤖 **Automated Remediation**: Comment \`/reconcile remediate ${env} drift\` on this issue to trigger the IaC Platform Agent to propose a corrective Pull Request.`,
+                  body: `The nightly drift detection workflow found that the live infrastructure in \`${env}\` does not match the Terraform state/code.\n\nPlease review the [Action Logs](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) to see the exact resources that have drifted and remediate immediately.${planBlock}\n\n🤖 **Automated Remediation**: Comment \`/reconcile remediate ${env} drift\` on this issue to trigger the IaC Platform Agent to propose a corrective Pull Request.`,
                   labels: ["bug", "security", "drift", env]
                 });
               }

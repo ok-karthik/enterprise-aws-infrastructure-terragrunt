@@ -100,6 +100,81 @@ class TestIaCPlatformAgent(unittest.TestCase):
             self.assertEqual(len(records), 1)
             self.assertEqual(records[0]["module_path"], "storage/test")
 
+    def test_dry_run_no_side_effects(self):
+        import subprocess
+
+        initial_branch = subprocess.check_output(
+            ["git", "branch", "--show-current"], cwd=iac_agent.REPO_ROOT, text=True
+        ).strip()
+        req = iac_agent.GenerationRequest(
+            request="add an S3 bucket for test artifacts",
+            env="dev",
+            region="eu-central-1",
+            dry_run=True,
+        )
+        agent = iac_agent.IaCPlatformAgent(self.catalog)
+        res = agent.generate(req)
+        self.assertTrue(res.success)
+        self.assertIsNone(res.branch)
+
+        # Verify branch did not change
+        current_branch = subprocess.check_output(
+            ["git", "branch", "--show-current"], cwd=iac_agent.REPO_ROOT, text=True
+        ).strip()
+        self.assertEqual(initial_branch, current_branch)
+
+        # Verify no files were created on disk
+        for f in res.files_changed:
+            self.assertFalse(Path(f).exists(), f"File should not have been created in dry-run: {f}")
+
+    def test_change_window_parsing(self):
+        from datetime import datetime, timezone
+
+        windows = ["Mon-Thu 08:00-16:00 UTC"]
+
+        # Tuesday 10:00 UTC (In window: weekday 1)
+        dt_in = datetime(2026, 8, 25, 10, 0, tzinfo=timezone.utc)
+        self.assertTrue(iac_agent.is_in_change_window(dt_in, windows))
+
+        # Friday 10:00 UTC (Outside window: weekday 4)
+        dt_wrong_day = datetime(2026, 8, 28, 10, 0, tzinfo=timezone.utc)
+        self.assertFalse(iac_agent.is_in_change_window(dt_wrong_day, windows))
+
+        # Wednesday 20:00 UTC (Outside window: wrong hour)
+        dt_wrong_time = datetime(2026, 8, 26, 20, 0, tzinfo=timezone.utc)
+        self.assertFalse(iac_agent.is_in_change_window(dt_wrong_time, windows))
+
+    def test_change_window_enforcement(self):
+        from datetime import datetime, timezone
+        import os
+
+        # Outside window on Saturday at 03:00 UTC
+        dt_sat = datetime(2026, 8, 29, 3, 0, tzinfo=timezone.utc)
+
+        # Default: advisory only (enforce_change_windows is false)
+        ok, msg = iac_agent.check_sre_error_budget("prod", now=dt_sat)
+        self.assertTrue(ok)
+
+        # When ENFORCE_CHANGE_WINDOWS=1: blocked
+        os.environ["ENFORCE_CHANGE_WINDOWS"] = "1"
+        try:
+            ok, msg = iac_agent.check_sre_error_budget("prod", now=dt_sat)
+            self.assertFalse(ok)
+            self.assertIn("Change Window Restriction", msg)
+        finally:
+            del os.environ["ENFORCE_CHANGE_WINDOWS"]
+
+    def test_dynamodb_template_scaffolding(self):
+        entry = iac_agent.match_catalog("provision a dynamodb table for sessions", self.catalog)
+        self.assertIsNotNone(entry)
+        self.assertEqual(entry["id"], "data/dynamodb-table")
+        self.assertEqual(entry["template"], "data-dynamodb-table")
+        template_file = iac_agent.CATALOG_TEMPLATES_DIR / entry["template"] / "envcommon.hcl.tmpl"
+        self.assertTrue(template_file.exists())
+        tmpl_content = template_file.read_text()
+        self.assertIn("terraform-aws-modules/dynamodb-table/aws", tmpl_content)
+        self.assertIn("PAY_PER_REQUEST", tmpl_content)
+
 
 if __name__ == "__main__":
     unittest.main()

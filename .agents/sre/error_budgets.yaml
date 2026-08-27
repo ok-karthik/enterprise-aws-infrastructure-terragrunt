@@ -25,3 +25,4 @@ environments:
     critical_threshold_pct: 10.0
     allowed_change_windows:
       - "Mon-Thu 08:00-16:00 UTC"
+    enforce_change_windows: false # Opt-in guardrail: set true or ENFORCE_CHANGE_WINDOWS=1 to freeze changes outside windows

@@ -68,7 +68,7 @@ def main():
     client, default_model = None, None
     try:
         client, default_model = iac_agent.get_client(args.provider)
-    except SystemExit:
+    except (SystemExit, ImportError, Exception):
         client = None
     model = args.model or default_model
 
