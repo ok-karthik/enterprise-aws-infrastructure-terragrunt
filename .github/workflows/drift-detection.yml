@@ -46,8 +46,8 @@ jobs:
         # -detailed-exitcode returns 2 if there are changes (drift)
         run: |
           set +e
-          terragrunt run --all plan --non-interactive -- -detailed-exitcode
-          exitcode=$?
+          terragrunt run --all plan --non-interactive -- -detailed-exitcode 2>&1 | tee /tmp/drift-plan.txt
+          exitcode=${PIPESTATUS[0]}
           set -e
 
           if [ $exitcode -eq 2 ]; then
@@ -95,7 +95,7 @@ jobs:
                   owner: context.repo.owner,
                   repo: context.repo.repo,
                   title: title,
-                  body: `The nightly drift detection workflow found that the live infrastructure in \`${env}\` does not match the Terraform state/code.\n\nPlease review the [Action Logs](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) to see the exact resources that have drifted and remediate immediately.`,
+                  body: `The nightly drift detection workflow found that the live infrastructure in \`${env}\` does not match the Terraform state/code.\n\nPlease review the [Action Logs](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) to see the exact resources that have drifted and remediate immediately.\n\n🤖 **Automated Remediation**: Comment \`/reconcile remediate ${env} drift\` on this issue to trigger the IaC Platform Agent to propose a corrective Pull Request.`,
                   labels: ["bug", "security", "drift", env]
                 });
               }

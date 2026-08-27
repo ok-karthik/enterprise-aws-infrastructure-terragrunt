@@ -1,0 +1,108 @@
+name: "🤖 IaC Agent ChatOps"
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  id-token: write
+
+jobs:
+  chatops:
+    name: "⚡ Process ChatOps Command"
+    # Only run on comments starting with /generate or /reconcile
+    if: |
+      startsWith(github.event.comment.body, '/generate') ||
+      startsWith(github.event.comment.body, '/reconcile')
+    runs-on: ubuntu-latest
+
+    container:
+      image: ghcr.io/ok-karthik/infrastructure-toolchain:latest
+      options: --user root
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+      - name: "Git Checkout"
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: "Configure Safe Git Directory"
+        run: |
+          git config --system --add safe.directory '*' || true
+          git config --global --add safe.directory '*' || true
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: "Parse Comment and Run IaC Platform Agent"
+        id: run-agent
+        env:
+          COMMENT_BODY: ${{ github.event.comment.body }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+        run: |
+          set -e
+
+          # Parse command and arguments from comment
+          CMD=$(echo "$COMMENT_BODY" | head -n 1)
+          echo "Processing ChatOps command: $CMD"
+
+          # Extract request prompt after /generate or /reconcile
+          REQUEST_PROMPT=$(echo "$CMD" | sed -E 's/^\/(generate|reconcile)[[:space:]]+//')
+
+          ENV="dev"
+          REGION="eu-central-1"
+          PROVIDER="gemini"
+
+          # Optional flag parsing from comment (e.g. --env prod)
+          if [[ "$REQUEST_PROMPT" =~ --env[[:space:]]+([a-z]+) ]]; then
+            ENV="${BASH_REMATCH[1]}"
+            REQUEST_PROMPT=$(echo "$REQUEST_PROMPT" | sed -E 's/--env[[:space:]]+[a-z]+//')
+          fi
+
+          if [[ "$REQUEST_PROMPT" =~ --region[[:space:]]+([a-z0-9-]+) ]]; then
+            REGION="${BASH_REMATCH[1]}"
+            REQUEST_PROMPT=$(echo "$REQUEST_PROMPT" | sed -E 's/--region[[:space:]]+[a-z0-9-]+//')
+          fi
+
+          # Trim leading/trailing whitespace
+          REQUEST_PROMPT=$(echo "$REQUEST_PROMPT" | xargs)
+
+          echo "Parsed Request: $REQUEST_PROMPT"
+          echo "Target Env: $ENV, Region: $REGION"
+
+          python3 -m pip install --break-system-packages -r .agents/requirements.txt
+
+          # Run IaC Agent
+          if [[ "$CMD" =~ ^/reconcile ]]; then
+            python3 .agents/scripts/iac_agent.py --request "$REQUEST_PROMPT" --reconcile "Drift issue #${ISSUE_NUMBER}" --env "$ENV" --region "$REGION" --provider "$PROVIDER" --skip-plan
+          else
+            python3 .agents/scripts/iac_agent.py --request "$REQUEST_PROMPT" --env "$ENV" --region "$REGION" --provider "$PROVIDER" --skip-plan
+          fi
+
+          CURRENT_BRANCH=$(git branch --show-current)
+          echo "BRANCH_NAME=$CURRENT_BRANCH" >> $GITHUB_OUTPUT
+
+      - name: "Push Branch and Create Pull Request"
+        if: steps.run-agent.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH_NAME: ${{ steps.run-agent.outputs.BRANCH_NAME }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          git push -u origin "$BRANCH_NAME"
+
+          PR_URL=$(gh pr create \
+            --base main \
+            --head "$BRANCH_NAME" \
+            --title "feat(iac-agent): automated proposal for issue #${ISSUE_NUMBER}" \
+            --body "Autonomous IaC Platform Agent proposal responding to ChatOps command on issue #${ISSUE_NUMBER}.\n\nCloses #${ISSUE_NUMBER}")
+
+          gh issue comment "$ISSUE_NUMBER" --body "🚀 **IaC Agent Proposal Ready!**\n\nA compliant pull request has been scaffolded and validated:\n👉 $PR_URL"
