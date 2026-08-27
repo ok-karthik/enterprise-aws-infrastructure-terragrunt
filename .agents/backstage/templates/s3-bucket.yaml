@@ -1,0 +1,56 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: aws-s3-encrypted-bucket
+  title: Compliant AWS S3 Bucket
+  description: Scaffolds a pre-vetted, encrypted, versioned AWS S3 bucket module using the IaC Platform Agent.
+  tags:
+    - aws
+    - storage
+    - s3
+    - golden-path
+spec:
+  owner: platform-team
+  type: infrastructure
+
+  parameters:
+    - title: Bucket Specification
+      required:
+        - bucket_slug
+        - environment
+      properties:
+        bucket_slug:
+          title: Bucket Purpose / Name Slug
+          type: string
+          description: Short descriptive name slug (e.g. app-artifacts, audit-logs)
+        environment:
+          title: Target Environment
+          type: string
+          enum:
+            - dev
+            - staging
+            - prod
+          default: dev
+        region:
+          title: AWS Region
+          type: string
+          default: eu-central-1
+        enable_versioning:
+          title: Enable Object Versioning
+          type: boolean
+          default: true
+
+  steps:
+    - id: generate-module
+      name: Scaffold Infrastructure Module
+      action: platform:iac-agent:generate
+      input:
+        request: "add an S3 bucket module for ${{ parameters.bucket_slug }}"
+        env: ${{ parameters.environment }}
+        region: ${{ parameters.region }}
+        catalog_id: data/s3-encrypted
+
+  output:
+    links:
+      - title: Review Proposed Infrastructure Branch
+        url: ${{ steps['generate-module'].output.branch_url }}
