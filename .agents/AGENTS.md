@@ -155,3 +155,4 @@ These are enforced against the **Terraform plan JSON** in CI (`reusable-terragru
     python3 .agents/scripts/iac_agent_eval.py
     python3 -m unittest discover -s .agents/tests
     ```
+*   **Documentation & Visual Flow**: See **[docs/IAC_PLATFORM_AGENT.md](../docs/IAC_PLATFORM_AGENT.md)** for complete end-to-end architecture flow diagrams, ChatOps triggers, Backstage IDP runner, and setup instructions.
