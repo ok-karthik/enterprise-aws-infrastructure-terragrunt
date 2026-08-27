@@ -1,0 +1,25 @@
+# Fixtures for .agents/scripts/iac_agent_eval.py (Phase A4).
+#
+# Catalog fixtures (expect_catalog_id) are fully offline/deterministic — no LLM call, no API
+# key needed, always run. LLM fixtures (expect_task_type / expect_module_path_prefix) exercise
+# classify_request() and are skipped (not failed) when no provider/API key is configured, so
+# this file is safe to run in any environment including CI without secrets.
+
+- request: "add an S3 bucket module for build artifacts"
+  expect_catalog_id: data/s3-encrypted
+
+- request: "create a bucket to store terraform state backups"
+  expect_catalog_id: data/s3-encrypted
+
+- request: "add an RDS postgres database for the orders service"
+  expect_catalog_id: data/rds-postgres
+
+- request: "provision a DynamoDB table for session storage"
+  expect_catalog_id: data/dynamodb-table
+
+- request: "add a new VPC module for the staging environment"
+  expect_task_type: new_module
+  expect_module_path_prefix: network/
+
+- request: "shrink the dev node group min size to save cost"
+  expect_task_type: modify_scaling
